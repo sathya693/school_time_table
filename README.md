@@ -4,6 +4,22 @@ This is a full-stack web application designed to help schools automatically gene
 
 The application is built with a Python/Flask backend, a SQLite database for offline-first data storage, and a vanilla JavaScript frontend.
 
+## Core Features
+
+*   **Automated Timetable Generation:** Uses a sophisticated algorithm to automatically generate a complete, conflict-free timetable based on your school's unique data.
+*   **Comprehensive Setup Wizard:** A step-by-step wizard allows you to input all necessary school data:
+    -   School-wide settings (e.g., periods per day)
+    -   Teachers
+    -   Subjects
+    -   Classrooms
+    -   Grades and their respective Sections
+    -   Courses (linking teachers, subjects, and sections)
+    -   Teacher unavailability constraints
+*   **Interactive Dashboard:** A central dashboard displays the generated timetable in a clear grid format.
+*   **Dynamic View Filtering:** Instantly filter the timetable to view the schedule for a specific teacher, section, or classroom using intuitive dropdown menus.
+*   **Manual Drag-and-Drop Editing:** An "Edit Mode" allows you to manually fine-tune the schedule by simply dragging and dropping lessons into new timeslots. The system validates each move to prevent you from creating new conflicts.
+*   **On-Demand Conflict Validation:** At any time, you can ask the system to validate the entire schedule. It will provide a clear list of any existing conflicts (e.g., a teacher being double-booked).
+
 ## Quickstart: Automated Setup
 
 For the easiest setup, use the automated scripts. They will create a virtual environment, install dependencies, and set up the database for you.
