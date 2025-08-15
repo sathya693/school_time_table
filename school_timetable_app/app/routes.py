@@ -213,17 +213,16 @@ def get_teacher_assignments(teacher_id):
     if not teacher:
         return jsonify({"error": "Teacher not found."}), 404
 
-    # Fetch courses and group by subject
+    # Fetch courses directly
     courses_q = Course.query.filter_by(teacher_id=teacher_id).all()
-    assignments_map = {}
-    for course in courses_q:
-        if course.subject_id not in assignments_map:
-            assignments_map[course.subject_id] = {
-                'subject_id': course.subject_id,
-                'periods_per_week': course.periods_per_week,
-                'sections': []
-            }
-        assignments_map[course.subject_id]['sections'].append(course.section_id)
+    assignments = [
+        {
+            "id": c.id,
+            "subject_id": c.subject_id,
+            "section_id": c.section_id,
+            "periods_per_week": c.periods_per_week
+        } for c in courses_q
+    ]
 
     # Fetch preferences
     preferences_q = Preference.query.filter_by(teacher_id=teacher_id).all()
@@ -237,7 +236,7 @@ def get_teacher_assignments(teacher_id):
     ]
 
     response = {
-        "assignments": list(assignments_map.values()),
+        "assignments": assignments,
         "preferences": preferences
     }
     return jsonify(response), 200
@@ -263,19 +262,20 @@ def update_teacher_assignments(teacher_id):
             Course.query.filter_by(teacher_id=teacher_id).delete()
             Preference.query.filter_by(teacher_id=teacher_id).delete()
 
-            # Create new courses
+            # Create new courses from the flat list
             new_courses = []
             for assignment in data['assignments']:
-                subject_id = assignment.get('subject_id')
-                periods_per_week = assignment.get('periods_per_week')
-                for section_id in assignment.get('sections', []):
-                    new_course = Course(
-                        teacher_id=teacher_id,
-                        subject_id=subject_id,
-                        section_id=section_id,
-                        periods_per_week=periods_per_week
-                    )
-                    new_courses.append(new_course)
+                # Basic validation for required keys in each assignment
+                if not all(k in assignment for k in ['subject_id', 'section_id', 'periods_per_week']):
+                    continue # Or raise an error
+
+                new_course = Course(
+                    teacher_id=teacher_id,
+                    subject_id=assignment['subject_id'],
+                    section_id=assignment['section_id'],
+                    periods_per_week=assignment['periods_per_week']
+                )
+                new_courses.append(new_course)
             db.session.add_all(new_courses)
 
             # Create new preferences

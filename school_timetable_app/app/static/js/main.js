@@ -182,57 +182,56 @@ function initSetupWizard() {
 
     // --- Teacher Assignment Logic ---
 
-    const createAssignmentBlock = (assignment = {}) => {
-        const block = document.createElement('div');
-        block.className = 'assignment-block';
+    const createCourseRow = (assignment = {}) => {
+        const row = document.createElement('div');
+        row.className = 'assignment-row';
 
         const subjectId = assignment.subject_id || '';
+        const sectionId = assignment.section_id || '';
         const periods = assignment.periods_per_week || 1;
-        const assignedSections = new Set(assignment.sections || []);
 
         // 1. Subject Dropdown
         const subjectSelect = document.createElement('select');
         subjectSelect.className = 'assignment-subject-select';
-        let optionsHtml = '<option value="">-- Select Subject --</option>';
+        let subjectOptions = '<option value="">-- Select Subject --</option>';
         allData.subjects.forEach(s => {
-            optionsHtml += `<option value="${s.id}" ${s.id === subjectId ? 'selected' : ''}>${s.name}</option>`;
+            subjectOptions += `<option value="${s.id}" ${s.id === subjectId ? 'selected' : ''}>${s.name}</option>`;
         });
-        subjectSelect.innerHTML = optionsHtml;
+        subjectSelect.innerHTML = subjectOptions;
 
-        // 2. Periods Input
+        // 2. Section Dropdown
+        const sectionSelect = document.createElement('select');
+        sectionSelect.className = 'assignment-section-select';
+        let sectionOptions = '<option value="">-- Select Section --</option>';
+        allData.sections.forEach(s => {
+            sectionOptions += `<option value="${s.id}" ${s.id === sectionId ? 'selected' : ''}>${s.grade_name} - ${s.name}</option>`;
+        });
+        sectionSelect.innerHTML = sectionOptions;
+
+        // 3. Periods Input
         const periodsInput = document.createElement('input');
         periodsInput.type = 'number';
         periodsInput.className = 'assignment-periods-input';
         periodsInput.value = periods;
         periodsInput.min = 1;
 
-        // 3. Sections Checkbox Grid
-        const sectionsContainer = document.createElement('div');
-        sectionsContainer.className = 'sections-grid';
-        allData.sections.forEach(s => {
-            const isChecked = assignedSections.has(s.id);
-            const label = document.createElement('label');
-            label.innerHTML = `<input type="checkbox" value="${s.id}" ${isChecked ? 'checked' : ''}> ${s.grade_name} - ${s.name}`;
-            sectionsContainer.appendChild(label);
-        });
-
         // 4. Remove Button
         const removeBtn = document.createElement('button');
         removeBtn.textContent = 'Remove';
         removeBtn.className = 'btn-remove-assignment';
-        removeBtn.onclick = () => block.remove();
+        removeBtn.onclick = () => row.remove();
 
-        block.append(subjectSelect, periodsInput, sectionsContainer, removeBtn);
-        return block;
+        row.append(subjectSelect, sectionSelect, periodsInput, removeBtn);
+        return row;
     };
 
-    const renderSubjectAssignments = (assignments = []) => {
+    const renderCourseAssignments = (assignments = []) => {
         ui.subjectAssignmentContainer.innerHTML = '';
         if (assignments.length === 0) {
-            ui.subjectAssignmentContainer.appendChild(createAssignmentBlock());
+            ui.subjectAssignmentContainer.appendChild(createCourseRow());
         } else {
             assignments.forEach(assignment => {
-                ui.subjectAssignmentContainer.appendChild(createAssignmentBlock(assignment));
+                ui.subjectAssignmentContainer.appendChild(createCourseRow(assignment));
             });
         }
     };
@@ -316,7 +315,7 @@ function initSetupWizard() {
             const data = await response.json();
             console.log('Received teacher assignment data:', data);
 
-            renderSubjectAssignments(data.assignments);
+            renderCourseAssignments(data.assignments);
             renderPreferences(data.preferences);
 
             ui.teacherAssignmentDetails.classList.remove('hidden');
@@ -334,8 +333,9 @@ function initSetupWizard() {
     }
 
     if (ui.btnAddSubjectAssignment) {
+        ui.btnAddSubjectAssignment.textContent = 'Add Assignment'; // Update button text
         ui.btnAddSubjectAssignment.addEventListener('click', () => {
-            ui.subjectAssignmentContainer.appendChild(createAssignmentBlock());
+            ui.subjectAssignmentContainer.appendChild(createCourseRow());
         });
     }
 
@@ -348,17 +348,17 @@ function initSetupWizard() {
             }
 
             const assignments = [];
-            document.querySelectorAll('.assignment-block').forEach(block => {
-                const subjectSelect = block.querySelector('.assignment-subject-select');
-                const periodsInput = block.querySelector('.assignment-periods-input');
-                const sectionCheckboxes = block.querySelectorAll('.sections-grid input:checked');
+            document.querySelectorAll('.assignment-row').forEach(row => {
+                const subjectSelect = row.querySelector('.assignment-subject-select');
+                const sectionSelect = row.querySelector('.assignment-section-select');
+                const periodsInput = row.querySelector('.assignment-periods-input');
 
-                if (subjectSelect.value) {
-                    const sectionIds = Array.from(sectionCheckboxes).map(cb => parseInt(cb.value));
+                // Only include complete rows
+                if (subjectSelect.value && sectionSelect.value && periodsInput.value) {
                     assignments.push({
                         subject_id: parseInt(subjectSelect.value),
-                        periods_per_week: parseInt(periodsInput.value),
-                        sections: sectionIds
+                        section_id: parseInt(sectionSelect.value),
+                        periods_per_week: parseInt(periodsInput.value)
                     });
                 }
             });
