@@ -8,6 +8,46 @@ logging.basicConfig(level=logging.INFO)
 
 main = Blueprint('main', __name__)
 
+def _regenerate_timeslots(work_days_str, periods_per_day_str):
+    """
+    Wipes and regenerates timeslots based on new configuration.
+    This is a destructive operation that also clears lessons and preferences.
+    """
+    try:
+        logging.info(f"Regenerating timeslots with work_days='{work_days_str}' and periods_per_day='{periods_per_day_str}'")
+        # This should be a single transaction
+        with db.session.begin_nested():
+            # 1. Clear dependent data
+            Lesson.query.delete()
+            Preference.query.delete()
+
+            # 2. Clear all existing timeslots
+            Timeslot.query.delete()
+
+            # 3. Create new timeslots
+            days = work_days_str.split(',')
+            periods_count = int(periods_per_day_str)
+
+            timeslots_to_create = []
+            for day in days:
+                for i in range(periods_count):
+                    period_num = i + 1
+                    # Dummy times for dynamic period counts
+                    start_time = f"{8+i}:00"
+                    end_time = f"{8+i}:45"
+                    timeslots_to_create.append(
+                        Timeslot(day_of_week=day, period_number=period_num, start_time=start_time, end_time=end_time)
+                    )
+            db.session.add_all(timeslots_to_create)
+
+        db.session.commit()
+        logging.info("Successfully regenerated timeslots.")
+        return True
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Failed to regenerate timeslots: {e}", exc_info=True)
+        return False
+
 # Page-rendering routes
 @main.route('/')
 def index():
@@ -55,6 +95,43 @@ def get_all_data():
         "config": config,
     }
     return jsonify(response), 200
+
+@main.route('/api/settings', methods=['POST'])
+def update_settings():
+    """
+    Endpoint to update multiple settings at once and regenerate timeslots.
+    """
+    data = request.get_json()
+    logging.info(f"Received POST for settings with data: {data}")
+    if not data or 'work_days' not in data or 'periods_per_day' not in data:
+        return jsonify({"error": "Invalid payload. 'work_days' and 'periods_per_day' are required."}), 400
+
+    work_days = data['work_days']
+    periods_per_day = data['periods_per_day']
+
+    try:
+        # Update configuration table
+        settings_map = {'work_days': work_days, 'periods_per_day': periods_per_day}
+        for key, value in settings_map.items():
+            setting = Configuration.query.filter_by(key=key).first()
+            if setting:
+                setting.value = value
+            else:
+                setting = Configuration(key=key, value=value)
+                db.session.add(setting)
+
+        # Now, regenerate the timeslots which is a destructive operation
+        if not _regenerate_timeslots(work_days, periods_per_day):
+            # The helper function already logged the error
+            return jsonify({"error": "Failed to regenerate timeslots."}), 500
+
+        db.session.commit()
+        return jsonify({"message": "Settings updated and timeslots regenerated successfully."}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating settings: {e}", exc_info=True)
+        return jsonify({"error": "A server error occurred while updating settings."}), 500
 
 @main.route('/api/data/setting', methods=['POST'])
 def update_setting():

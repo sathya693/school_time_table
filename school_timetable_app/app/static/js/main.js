@@ -154,14 +154,12 @@ function initSetupWizard() {
                     return;
                 }
 
-                const settingsToSave = [
-                    { key: 'periods_per_day', value: periodsPerDay },
-                    { key: 'work_days', value: workDays },
-                ];
+                const payload = {
+                    periods_per_day: periodsPerDay,
+                    work_days: workDays,
+                };
 
-                await Promise.all(settingsToSave.map(setting =>
-                    postData('/api/data/setting', setting)
-                ));
+                await postData('/api/settings', payload);
 
                 button.textContent = 'Saved!';
                 setTimeout(() => { button.textContent = originalButtonText; }, 2000);
