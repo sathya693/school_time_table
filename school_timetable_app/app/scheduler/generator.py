@@ -86,23 +86,45 @@ class TimetableGenerator:
 
         random.shuffle(lessons_to_schedule) # Introduce randomness
 
-        # Shuffle timeslots to ensure a more uniform distribution
-        random.shuffle(self.timeslots)
-
         for lesson in lessons_to_schedule:
-            placed = False
-            # Find the first available and valid slot
+            possible_slots = []
+            # Find all valid slots for the current lesson
             for timeslot in self.timeslots:
                 if not self._is_hard_constraint_violated(schedule, lesson, timeslot['id']):
-                    schedule.append({
-                        **lesson,
-                        'timeslot_id': timeslot['id'],
-                    })
-                    placed = True
-                    break
-            if not placed:
+                    possible_slots.append(timeslot)
+
+            if not possible_slots:
                 print(f"Failed to place a lesson for course {lesson['course_id']}. Not enough resources or too many constraints.")
-                return None # Failed to create a valid schedule
+                return None  # Failed to create a valid schedule
+
+            # Score the possible slots to find the best one
+            best_slot = None
+            max_score = -1
+
+            # Shuffle the possible slots to avoid bias for neutral slots
+            random.shuffle(possible_slots)
+
+            for slot in possible_slots:
+                score = 0 # Neutral score
+                key = (lesson['teacher_id'], slot['id'])
+                if self.prefs_map.get(key) == 'desirable':
+                    score = 5 # Desirable score
+
+                if score > max_score:
+                    max_score = score
+                    best_slot = slot
+                # If the best possible score is already found, no need to check further
+                if max_score == 5:
+                    break
+
+            # If no slot had a positive score, best_slot will be the first random valid one
+            if best_slot is None:
+                best_slot = possible_slots[0]
+
+            schedule.append({
+                **lesson,
+                'timeslot_id': best_slot['id'],
+            })
 
         return schedule
 
