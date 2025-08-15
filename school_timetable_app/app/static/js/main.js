@@ -245,27 +245,32 @@ function initSetupWizard() {
 
         const grid = document.createElement('div');
         grid.className = 'preferences-grid';
+        grid.style.gridTemplateColumns = `100px repeat(${days.length}, 1fr)`;
 
-        let headerHtml = '<div class="pref-grid-cell day-label"></div>';
-        for (let p = 1; p <= periods; p++) {
-            headerHtml += `<div class="pref-grid-cell period-label">P${p}</div>`;
-        }
+        // 1. Header Row (Days)
+        let headerHtml = '<div class="pref-grid-cell period-label"></div>'; // Empty corner
+        days.forEach(day => {
+            headerHtml += `<div class="pref-grid-cell day-label">${day}</div>`;
+        });
         grid.innerHTML = headerHtml;
 
+        // 2. Map timeslots for easy lookup
         const timeslotMap = {};
         if (allData.timeslots) {
             allData.timeslots.forEach(t => {
-                if (!timeslotMap[t.day_of_week]) timeslotMap[t.day_of_week] = {};
-                timeslotMap[t.day_of_week][t.period_number] = t.id;
+                if (!timeslotMap[t.period_number]) timeslotMap[t.period_number] = {};
+                timeslotMap[t.period_number][t.day_of_week] = t.id;
             });
         }
 
-        days.forEach(day => {
+        // 3. Period Rows
+        for (let p = 1; p <= periods; p++) {
             const row = document.createElement('div');
             row.className = 'pref-grid-row';
-            row.innerHTML += `<div class="pref-grid-cell day-label">${day}</div>`;
-            for (let p = 1; p <= periods; p++) {
-                const timeslotId = timeslotMap[day] ? timeslotMap[day][p] : null;
+            row.innerHTML += `<div class="pref-grid-cell period-label">Period ${p}</div>`;
+
+            days.forEach(day => {
+                const timeslotId = timeslotMap[p] ? timeslotMap[p][day] : null;
                 const cell = document.createElement('div');
                 cell.className = 'pref-grid-cell';
                 if (timeslotId) {
@@ -281,9 +286,9 @@ function initSetupWizard() {
                     `;
                 }
                 row.appendChild(cell);
-            }
+            });
             grid.appendChild(row);
-        });
+        }
 
         ui.preferencesContainer.appendChild(grid);
 

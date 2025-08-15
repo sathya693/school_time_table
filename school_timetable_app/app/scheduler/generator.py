@@ -57,8 +57,9 @@ class TimetableGenerator:
 
         # Check teacher availability constraint
         key = (lesson['teacher_id'], timeslot_id)
-        if self.prefs_map.get(key) == 'unavailable':
-            return True # Teacher is unavailable
+        preference = self.prefs_map.get(key)
+        if preference in ['unavailable', 'undesirable']:
+            return True # Teacher is unavailable or has marked the slot as undesirable
 
         # Check for clashes
         for scheduled_lesson in schedule:
