@@ -180,6 +180,53 @@ function initSetupWizard() {
     handleFormSubmit(ui.gradeForm, '/api/data/grade', f => ({ name: f.elements['grade-name'].value.trim() }));
     handleFormSubmit(ui.sectionForm, '/api/data/section', f => ({ name: f.elements['section-name'].value.trim(), grade_id: f.elements['section-grade-select'].value }));
 
+    // --- Summary Tab Logic ---
+
+    const renderWorkloadTable = (workload) => {
+        const tbody = document.querySelector('#summary-teacher-workload tbody');
+        if (!tbody) return;
+        tbody.innerHTML = ''; // Clear existing rows
+        workload.forEach(item => {
+            const row = `<tr><td>${item.teacher_name}</td><td>${item.assigned_periods}</td></tr>`;
+            tbody.innerHTML += row;
+        });
+    };
+
+    const renderAnalysisTable = (analysis) => {
+        const tbody = document.querySelector('#summary-subject-analysis tbody');
+        if (!tbody) return;
+        tbody.innerHTML = ''; // Clear existing rows
+        analysis.forEach(item => {
+            let statusClass = '';
+            if (item.status === 'Shortage') statusClass = 'status-shortage';
+            else if (item.status === 'Surplus') statusClass = 'status-surplus';
+            const row = `<tr>
+                <td>${item.subject_name}</td>
+                <td>${item.required_periods}</td>
+                <td>${item.available_teachers}</td>
+                <td class="${statusClass}">${item.status}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    };
+
+    const loadSummaryData = async () => {
+        console.log("Loading summary data...");
+        try {
+            const response = await fetch('/api/analytics/summary');
+            if (!response.ok) throw new Error('Failed to fetch summary data.');
+            const summaryData = await response.json();
+
+            renderWorkloadTable(summaryData.teacher_workload);
+            renderAnalysisTable(summaryData.subject_analysis);
+        } catch (error) {
+            console.error('Failed to load summary data:', error);
+            // Optionally, display an error in the tables
+            document.querySelector('#summary-teacher-workload tbody').innerHTML = `<tr><td colspan="2" class="error-cell">${error.message}</td></tr>`;
+            document.querySelector('#summary-subject-analysis tbody').innerHTML = `<tr><td colspan="4" class="error-cell">${error.message}</td></tr>`;
+        }
+    };
+
     // --- Teacher Assignment Logic ---
 
     const createCourseRow = (assignment = {}) => {
@@ -402,6 +449,12 @@ function initSetupWizard() {
     const updateWizard = () => {
         steps.forEach((step, index) => step.classList.toggle('active', index === currentStep));
         indicators.forEach((indicator, index) => indicator.classList.toggle('active', index === currentStep));
+
+        // If the new summary tab is active, fetch its data
+        if (currentStep === 5) { // Step 6 is at index 5
+            loadSummaryData();
+        }
+
         prevBtn.style.display = currentStep === 0 ? 'none' : 'inline-block';
         nextBtn.style.display = currentStep === steps.length - 1 ? 'none' : 'inline-block';
         finishBtn.style.display = currentStep === steps.length - 1 ? 'inline-block' : 'none';

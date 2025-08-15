@@ -29,18 +29,32 @@
         }
         .preferences-grid {
             display: grid;
-            grid-template-columns: 100px repeat(12, 1fr); /* Adjust column count if max periods change */
-            gap: 5px;
+            gap: 2px;
             margin-top: 1rem;
+            align-items: center;
+            background-color: #ddd;
+            border: 1px solid #ccc;
+        }
+        .pref-grid-row {
+            display: contents; /* Core part of making the row a "virtual" container */
         }
         .pref-grid-cell {
             text-align: center;
+            padding: 4px;
+            background-color: #fff;
+            font-size: 0.85rem;
+        }
+        .pref-grid-cell.day-label, .pref-grid-cell.period-label {
+            font-weight: 500;
+            background-color: #f2f2f2;
         }
         .pref-btn {
-            padding: 5px;
+            padding: 4px 8px;
             border: 1px solid #ccc;
             background-color: #fff;
             cursor: pointer;
+            font-size: 0.8rem;
+            line-height: 1.2;
         }
         .pref-btn.active {
             background-color: #007bff;
@@ -49,6 +63,21 @@
         .btn-remove-assignment {
             background-color: #dc3545;
             color: white;
+        }
+        .summary-section {
+            margin-bottom: 2rem;
+        }
+        .status-shortage {
+            color: #dc3545;
+            font-weight: 500;
+        }
+        .status-surplus {
+            color: #28a745;
+            font-weight: 500;
+        }
+        .error-cell {
+            color: #dc3545;
+            font-style: italic;
         }
     </style>
 </head>

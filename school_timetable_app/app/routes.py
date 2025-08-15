@@ -302,6 +302,19 @@ def update_teacher_assignments(teacher_id):
 
 from .scheduler.generator import TimetableGenerator
 from .scheduler.rescheduler import TimetableRescheduler
+from .analytics import generate_summary_data
+
+# --- API Routes for Analytics ---
+
+@main.route('/api/analytics/summary', methods=['GET'])
+def get_analytics_summary():
+    """Endpoint to fetch all analytical data for the summary page."""
+    try:
+        summary_data = generate_summary_data()
+        return jsonify(summary_data), 200
+    except Exception as e:
+        logging.error(f"Error generating analytics summary: {e}", exc_info=True)
+        return jsonify({"error": "Failed to generate analytics summary."}), 500
 
 # --- API Routes for Timetable Generation & Editing ---
 

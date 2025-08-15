@@ -13,6 +13,7 @@
         <span class="step-indicator" data-step="3">3. Subjects</span>
         <span class="step-indicator" data-step="4">4. Grades & Sections</span>
         <span class="step-indicator" data-step="5">5. Teacher Assignments</span>
+        <span class="step-indicator" data-step="6">6. Summary</span>
     </div>
 
     <!-- Step 1: Settings -->
@@ -111,6 +112,32 @@
 
             <hr>
             <button id="btn-save-teacher-assignments" class="btn-primary">Save All Assignments for this Teacher</button>
+        </div>
+    </div>
+
+    <!-- Step 6: Summary -->
+    <div class="wizard-step" id="step-6">
+        <h2>Step 6: Analytical Summary</h2>
+        <p>This page provides an overview of your school's resource allocation based on the current data.</p>
+
+        <div class="summary-section">
+            <h3>Teacher Workload</h3>
+            <p>Total periods assigned to each teacher per week.</p>
+            <table id="summary-teacher-workload">
+                <!-- JS will populate this table -->
+                <thead><tr><th>Teacher</th><th>Assigned Periods</th></tr></thead>
+                <tbody><tr><td colspan="2">Loading...</td></tr></tbody>
+            </table>
+        </div>
+
+        <div class="summary-section">
+            <h3>Subject Staffing Analysis</h3>
+            <p>Analysis of teacher availability vs. periods required for each subject.</p>
+            <table id="summary-subject-analysis">
+                <!-- JS will populate this table -->
+                <thead><tr><th>Subject</th><th>Required Periods</th><th>Available Teachers</th><th>Status</th></tr></thead>
+                <tbody><tr><td colspan="4">Loading...</td></tr></tbody>
+            </table>
         </div>
     </div>
 
