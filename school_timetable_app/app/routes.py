@@ -69,17 +69,22 @@ def update_setting():
     key = data['key']
     value = data['value']
 
-    setting = Configuration.query.filter_by(key=key).first()
-    if setting:
-        logging.info(f"Updating setting '{key}' from '{setting.value}' to '{value}'")
-        setting.value = value
-    else:
-        logging.info(f"Creating new setting '{key}' with value '{value}'")
-        setting = Configuration(key=key, value=value)
-        db.session.add(setting)
+    try:
+        setting = Configuration.query.filter_by(key=key).first()
+        if setting:
+            logging.info(f"Updating setting '{key}' from '{setting.value}' to '{value}'")
+            setting.value = value
+        else:
+            logging.info(f"Creating new setting '{key}' with value '{value}'")
+            setting = Configuration(key=key, value=value)
+            db.session.add(setting)
 
-    db.session.commit()
-    return jsonify({"message": "Setting updated successfully"}), 200
+        db.session.commit()
+        return jsonify({"message": "Setting updated successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating setting '{key}': {e}", exc_info=True)
+        return jsonify({"error": "Failed to update setting."}), 500
 
 def handle_post(model, required_fields):
     """Generic handler for creating a new model instance."""
