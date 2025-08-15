@@ -66,6 +66,12 @@ function initSetupWizard() {
             allData = await response.json();
             console.log("Data reloaded:", allData);
             populateAllUI();
+
+            // After reloading, if a section is selected in the subject assignment UI,
+            // trigger its change event to refresh the checklist with the new data.
+            if (ui.sectionSubjectSelect && ui.sectionSubjectSelect.value) {
+                ui.sectionSubjectSelect.dispatchEvent(new Event('change'));
+            }
         } catch (e) {
             console.error("Failed to reload data", e);
             alert("Failed to load school data. Please check the server connection and refresh the page.");
@@ -232,6 +238,7 @@ function initSetupWizard() {
             try {
                 await postData(`/api/section/${sectionId}/subjects`, selectedSubjectIds);
                 alert('Subject assignments saved successfully!');
+                await reloadData(); // Refresh all data to ensure consistency
             } catch (error) {
                 alert(`Error saving subject assignments: ${error.message}`);
             }
