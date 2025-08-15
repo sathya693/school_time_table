@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import Teacher, Subject, Classroom, Grade, Section, Timeslot, Constraint, Course, Configuration
+from app.models import Teacher, Subject, Grade, Section, Timeslot, Preference, Course, Configuration
 
 def seed_data():
     """Populates the database with a realistic set of sample data."""
@@ -10,11 +10,10 @@ def seed_data():
         # Clear existing data in the correct order
         print("Clearing old data...")
         Course.query.delete()
-        Constraint.query.delete()
+        Preference.query.delete()
         Timeslot.query.delete()
         Section.query.delete()
         Grade.query.delete()
-        Classroom.query.delete()
         Subject.query.delete()
         Teacher.query.delete()
         Configuration.query.delete()
@@ -49,13 +48,11 @@ def seed_data():
         db.session.commit()
 
         # --- Create Master Data ---
-        print("Creating master data (teachers, subjects, classrooms)...")
+        print("Creating master data (teachers, subjects)...")
         teachers = [Teacher(name=n) for n in ['Mr. Smith', 'Ms. Jones', 'Mr. Davis', 'Ms. Rodriguez', 'Mr. Chen', 'Ms. Williams', 'Mr. Brown', 'Ms. Patel', 'Mr. Wilson', 'Ms. Taylor', 'Mr. Lee', 'Ms. Garcia', 'Mr. Martinez', 'Ms. Nguyen', 'Mr. Kim']]
         subjects = [Subject(name=n) for n in ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Art']]
-        classrooms = [Classroom(name=f"Room {100+i}") for i in range(15)]
         db.session.add_all(teachers)
         db.session.add_all(subjects)
-        db.session.add_all(classrooms)
         db.session.commit()
 
         # --- Create Grades and Sections ---
@@ -94,13 +91,13 @@ def seed_data():
         db.session.add_all(courses_to_create)
         db.session.commit()
 
-        # --- Create Constraints ---
-        print("Creating constraints...")
+        # --- Create Preferences ---
+        print("Creating preferences...")
         # Make Mr. Smith unavailable on Monday morning
         mr_smith = Teacher.query.filter_by(name='Mr. Smith').first()
         monday_morning_slots = Timeslot.query.filter(Timeslot.day_of_week == 'Monday', Timeslot.period_number <= 4).all()
-        constraints = [Constraint(teacher_id=mr_smith.id, timeslot_id=slot.id) for slot in monday_morning_slots]
-        db.session.add_all(constraints)
+        preferences = [Preference(teacher_id=mr_smith.id, timeslot_id=slot.id, preference_type='unavailable') for slot in monday_morning_slots]
+        db.session.add_all(preferences)
         db.session.commit()
 
         print("Database seed completed successfully!")

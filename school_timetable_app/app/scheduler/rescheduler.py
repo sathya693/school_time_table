@@ -2,7 +2,7 @@ class TimetableRescheduler:
     """
     Finds alternative slots for a conflicting lesson.
     """
-    def __init__(self, schedule, courses, timeslots, constraints, config=None):
+    def __init__(self, schedule, courses, timeslots, config=None, preferences=None):
         """
         Initializes the rescheduler.
 
@@ -10,21 +10,20 @@ class TimetableRescheduler:
             schedule (list of dicts): The current timetable, potentially with conflicts.
             courses (list of dicts): All available courses.
             timeslots (list of dicts): All available timeslots.
-            constraints (list of dicts): Teacher unavailability constraints.
             config (dict): Application configuration, e.g., lunch break period.
+            preferences (list of dicts): Teacher preferences for timeslots.
         """
         self.schedule = schedule
         self.courses = courses
         self.timeslots = timeslots
-        self.constraints = constraints
         self.config = config if config is not None else {}
+        self.preferences = preferences if preferences is not None else []
 
         # Pre-process for faster lookups
-        self.teacher_constraints = {}
-        for c in self.constraints:
-            if c['teacher_id'] not in self.teacher_constraints:
-                self.teacher_constraints[c['teacher_id']] = set()
-            self.teacher_constraints[c['teacher_id']].add(c['timeslot_id'])
+        self.prefs_map = {}
+        for p in self.preferences:
+            key = (p['teacher_id'], p['timeslot_id'])
+            self.prefs_map[key] = p['preference_type']
 
         self.schedule_by_timeslot = {}
         for lesson in self.schedule:
@@ -80,8 +79,8 @@ class TimetableRescheduler:
             return True # It's lunch time
 
         # Check teacher availability constraint
-        if lesson['teacher_id'] in self.teacher_constraints and \
-           timeslot_id in self.teacher_constraints[lesson['teacher_id']]:
+        key = (lesson['teacher_id'], timeslot_id)
+        if self.prefs_map.get(key) == 'unavailable':
             return True
 
         # Check for clashes with other lessons already scheduled in that timeslot

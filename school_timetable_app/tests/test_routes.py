@@ -1,7 +1,7 @@
 import pytest
 import json
 from app import create_app, db
-from app.models import Teacher, Subject, Grade, Section, Classroom, Timeslot, Course
+from app.models import Teacher, Subject, Grade, Section, Timeslot, Course
 
 @pytest.fixture(scope='module')
 def test_app():
@@ -53,9 +53,8 @@ def test_generate_timetable_endpoint(client, test_app):
         subject = Subject(name='Test Subject')
         grade = Grade(name='Test Grade')
         section = Section(name='Test Section', grade=grade)
-        classroom = Classroom(name='Test Room')
         timeslot = Timeslot(day_of_week='Monday', period_number=1, start_time='09:00', end_time='10:00')
-        db.session.add_all([teacher, subject, grade, section, classroom, timeslot])
+        db.session.add_all([teacher, subject, grade, section, timeslot])
         db.session.commit()
 
         course = Course(teacher_id=teacher.id, subject_id=subject.id, section_id=section.id, periods_per_week=1)

@@ -8,6 +8,49 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .lunch-break {
+            background-color: #f0f0f0 !important;
+            font-style: italic;
+            color: #888;
+        }
+        .hidden { display: none; }
+        .assignment-block {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+        }
+        .sections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .preferences-grid {
+            display: grid;
+            grid-template-columns: 100px repeat(12, 1fr); /* Adjust column count if max periods change */
+            gap: 5px;
+            margin-top: 1rem;
+        }
+        .pref-grid-cell {
+            text-align: center;
+        }
+        .pref-btn {
+            padding: 5px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            cursor: pointer;
+        }
+        .pref-btn.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-remove-assignment {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar">

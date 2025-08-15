@@ -31,27 +31,28 @@ function initSetupWizard() {
         settingsForm: document.getElementById('form-settings'),
         teacherForm: document.getElementById('form-add-teacher'),
         subjectForm: document.getElementById('form-add-subject'),
-        classroomForm: document.getElementById('form-add-classroom'),
         gradeForm: document.getElementById('form-add-grade'),
         sectionForm: document.getElementById('form-add-section'),
-        courseForm: document.getElementById('form-add-course'),
-        constraintForm: document.getElementById('form-add-constraint'),
+
         periodsInput: document.getElementById('periods-per-day'),
         lunchBreakInput: document.getElementById('lunch-break-period'),
         workDaysGroup: document.getElementById('work-days-group'),
+
         sectionGradeSelect: document.getElementById('section-grade-select'),
-        courseTeacherSelect: document.getElementById('course-teacher-select'),
-        courseSubjectSelect: document.getElementById('course-subject-select'),
-        courseSectionSelect: document.getElementById('course-section-select'),
-        constraintTeacherSelect: document.getElementById('constraint-teacher-select'),
-        constraintTimeslotSelect: document.getElementById('constraint-timeslot-select'),
+
+        // New Assignment UI
+        assignmentTeacherSelect: document.getElementById('assignment-teacher-select'),
+        teacherAssignmentDetails: document.getElementById('teacher-assignment-details'),
+        subjectAssignmentContainer: document.getElementById('subject-assignment-container'),
+        btnAddSubjectAssignment: document.getElementById('btn-add-subject-assignment'),
+        preferencesContainer: document.getElementById('preferences-container'),
+        btnSaveTeacherAssignments: document.getElementById('btn-save-teacher-assignments'),
+
+        // Data lists
         teachersList: document.getElementById('teachers-list'),
         subjectsList: document.getElementById('subjects-list'),
-        classroomsList: document.getElementById('classrooms-list'),
         gradesList: document.getElementById('grades-list'),
         sectionsList: document.getElementById('sections-list'),
-        coursesList: document.getElementById('courses-list'),
-        constraintsList: document.getElementById('constraints-list'),
     };
 
     const reloadData = async () => {
@@ -74,26 +75,8 @@ function initSetupWizard() {
         };
         renderList(ui.teachersList, allData.teachers, t => t.name);
         renderList(ui.subjectsList, allData.subjects, s => s.name);
-        renderList(ui.classroomsList, allData.classrooms, c => c.name);
         renderList(ui.gradesList, allData.grades, g => g.name);
         renderList(ui.sectionsList, allData.sections, s => `${s.grade_name} - ${s.name}`);
-
-        const courseFormatter = c => {
-            const teacher = (allData.teachers.find(t => t.id === c.teacher_id) || {}).name || 'N/A';
-            const subject = (allData.subjects.find(s => s.id === c.subject_id) || {}).name || 'N/A';
-            const section = allData.sections.find(s => s.id === c.section_id);
-            const sectionName = section ? `${section.grade_name} - ${section.name}` : 'N/A';
-            return `${subject} for ${sectionName} (Taught by ${teacher}, ${c.periods_per_week}p/w)`;
-        };
-        renderList(ui.coursesList, allData.courses, courseFormatter);
-
-        const constraintFormatter = c => {
-            const teacher = (allData.teachers.find(t => t.id === c.teacher_id) || {}).name || 'N/A';
-            const timeslot = allData.timeslots.find(t => t.id === c.timeslot_id);
-            const timeslotLabel = timeslot ? `${timeslot.day_of_week} - Period ${timeslot.period_number}` : 'N/A';
-            return `${teacher} is unavailable at ${timeslotLabel}`;
-        };
-        renderList(ui.constraintsList, allData.constraints, constraintFormatter);
 
         if (allData.config) {
             if (ui.periodsInput && allData.config.periods_per_day) {
@@ -126,11 +109,7 @@ function initSetupWizard() {
             selectElement.value = currentVal;
         };
         populateSelect(ui.sectionGradeSelect, allData.grades, 'Grade', 'id', 'name');
-        populateSelect(ui.courseTeacherSelect, allData.teachers, 'Teacher', 'id', 'name');
-        populateSelect(ui.courseSubjectSelect, allData.subjects, 'Subject', 'id', 'name');
-        populateSelect(ui.courseSectionSelect, allData.sections, 'Section', 'id', 'name');
-        populateSelect(ui.constraintTeacherSelect, allData.teachers, 'Teacher', 'id', 'name');
-        populateSelect(ui.constraintTimeslotSelect, allData.timeslots, 'Timeslot', 'id', 'id');
+        populateSelect(ui.assignmentTeacherSelect, allData.teachers, 'Teacher', 'id', 'name');
     };
 
     const handleFormSubmit = (form, url, getBody) => {
@@ -206,11 +185,149 @@ function initSetupWizard() {
 
     handleFormSubmit(ui.teacherForm, '/api/data/teacher', f => ({ name: f.elements['teacher-name'].value.trim() }));
     handleFormSubmit(ui.subjectForm, '/api/data/subject', f => ({ name: f.elements['subject-name'].value.trim() }));
-    handleFormSubmit(ui.classroomForm, '/api/data/classroom', f => ({ name: f.elements['classroom-name'].value.trim() }));
     handleFormSubmit(ui.gradeForm, '/api/data/grade', f => ({ name: f.elements['grade-name'].value.trim() }));
     handleFormSubmit(ui.sectionForm, '/api/data/section', f => ({ name: f.elements['section-name'].value.trim(), grade_id: f.elements['section-grade-select'].value }));
-    handleFormSubmit(ui.courseForm, '/api/data/course', f => ({ teacher_id: f.elements['course-teacher-select'].value, subject_id: f.elements['course-subject-select'].value, section_id: f.elements['course-section-select'].value, periods_per_week: f.elements['course-periods'].value }));
-    handleFormSubmit(ui.constraintForm, '/api/data/constraint', f => ({ teacher_id: f.elements['constraint-teacher-select'].value, timeslot_id: f.elements['constraint-timeslot-select'].value }));
+
+    // --- Teacher Assignment Logic ---
+
+    const createAssignmentBlock = (assignment = {}) => {
+        const block = document.createElement('div');
+        block.className = 'assignment-block';
+
+        const subjectId = assignment.subject_id || '';
+        const periods = assignment.periods_per_week || 1;
+        const assignedSections = new Set(assignment.sections || []);
+
+        // 1. Subject Dropdown
+        const subjectSelect = document.createElement('select');
+        subjectSelect.className = 'assignment-subject-select';
+        let optionsHtml = '<option value="">-- Select Subject --</option>';
+        allData.subjects.forEach(s => {
+            optionsHtml += `<option value="${s.id}" ${s.id === subjectId ? 'selected' : ''}>${s.name}</option>`;
+        });
+        subjectSelect.innerHTML = optionsHtml;
+
+        // 2. Periods Input
+        const periodsInput = document.createElement('input');
+        periodsInput.type = 'number';
+        periodsInput.className = 'assignment-periods-input';
+        periodsInput.value = periods;
+        periodsInput.min = 1;
+
+        // 3. Sections Checkbox Grid
+        const sectionsContainer = document.createElement('div');
+        sectionsContainer.className = 'sections-grid';
+        allData.sections.forEach(s => {
+            const isChecked = assignedSections.has(s.id);
+            const label = document.createElement('label');
+            label.innerHTML = `<input type="checkbox" value="${s.id}" ${isChecked ? 'checked' : ''}> ${s.grade_name} - ${s.name}`;
+            sectionsContainer.appendChild(label);
+        });
+
+        // 4. Remove Button
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = 'Remove';
+        removeBtn.className = 'btn-remove-assignment';
+        removeBtn.onclick = () => block.remove();
+
+        block.append(subjectSelect, periodsInput, sectionsContainer, removeBtn);
+        return block;
+    };
+
+    const renderSubjectAssignments = (assignments = []) => {
+        ui.subjectAssignmentContainer.innerHTML = '';
+        if (assignments.length === 0) {
+            ui.subjectAssignmentContainer.appendChild(createAssignmentBlock());
+        } else {
+            assignments.forEach(assignment => {
+                ui.subjectAssignmentContainer.appendChild(createAssignmentBlock(assignment));
+            });
+        }
+    };
+
+    const handleTeacherSelection = async (teacherId) => {
+        if (!teacherId) {
+            ui.teacherAssignmentDetails.classList.add('hidden');
+            return;
+        }
+        console.log(`Fetching assignments for teacher ID: ${teacherId}`);
+        try {
+            const response = await fetch(`/api/teacher/${teacherId}/assignments`);
+            if (!response.ok) throw new Error('Failed to fetch teacher assignments.');
+
+            const data = await response.json();
+            console.log('Received teacher assignment data:', data);
+
+            renderSubjectAssignments(data.assignments);
+            renderPreferences(data.preferences);
+
+            ui.teacherAssignmentDetails.classList.remove('hidden');
+        } catch (error) {
+            console.error(error);
+            alert('Could not load teacher assignment details. Please try again.');
+            ui.teacherAssignmentDetails.classList.add('hidden');
+        }
+    };
+
+    if (ui.assignmentTeacherSelect) {
+        ui.assignmentTeacherSelect.addEventListener('change', (e) => {
+            handleTeacherSelection(e.target.value);
+        });
+    }
+
+    if (ui.btnAddSubjectAssignment) {
+        ui.btnAddSubjectAssignment.addEventListener('click', () => {
+            ui.subjectAssignmentContainer.appendChild(createAssignmentBlock());
+        });
+    }
+
+    if (ui.btnSaveTeacherAssignments) {
+        ui.btnSaveTeacherAssignments.addEventListener('click', async () => {
+            const teacherId = ui.assignmentTeacherSelect.value;
+            if (!teacherId) {
+                alert('Please select a teacher first.');
+                return;
+            }
+
+            const assignments = [];
+            document.querySelectorAll('.assignment-block').forEach(block => {
+                const subjectSelect = block.querySelector('.assignment-subject-select');
+                const periodsInput = block.querySelector('.assignment-periods-input');
+                const sectionCheckboxes = block.querySelectorAll('.sections-grid input:checked');
+
+                if (subjectSelect.value) {
+                    const sectionIds = Array.from(sectionCheckboxes).map(cb => parseInt(cb.value));
+                    assignments.push({
+                        subject_id: parseInt(subjectSelect.value),
+                        periods_per_week: parseInt(periodsInput.value),
+                        sections: sectionIds
+                    });
+                }
+            });
+
+            const preferences = [];
+            document.querySelectorAll('.preferences-grid .pref-grid-cell').forEach(cell => {
+                const activeBtn = cell.querySelector('.pref-btn.active');
+                if (activeBtn) {
+                    preferences.push({
+                        timeslot_id: parseInt(cell.dataset.timeslotId),
+                        preference_type: activeBtn.dataset.prefType,
+                        subject_id: null // Subject-specific preferences can be added later
+                    });
+                }
+            });
+
+            const payload = { assignments, preferences };
+            console.log('Saving teacher assignments:', payload);
+
+            try {
+                await postData(`/api/teacher/${teacherId}/assignments`, payload);
+                alert('Teacher assignments saved successfully!');
+            } catch (error) {
+                alert(`Error saving assignments: ${error.message}`);
+            }
+        });
+    }
 
     const steps = document.querySelectorAll('.wizard-step');
     const indicators = document.querySelectorAll('.step-indicator');
@@ -226,8 +343,17 @@ function initSetupWizard() {
         nextBtn.style.display = currentStep === steps.length - 1 ? 'none' : 'inline-block';
         finishBtn.style.display = currentStep === steps.length - 1 ? 'inline-block' : 'none';
     };
-    nextBtn.addEventListener('click', () => { if (currentstep < steps.length - 1) { currentstep++; updatewizard(); } });
-    prevBtn.addEventListener('click', () => { if (currentstep > 0) { currentstep--; updatewizard(); } });
+
+    indicators.forEach(indicator => {
+        indicator.addEventListener('click', () => {
+            const stepNumber = parseInt(indicator.dataset.step);
+            currentStep = stepNumber - 1;
+            updateWizard();
+        });
+    });
+
+    nextBtn.addEventListener('click', () => { if (currentStep < steps.length - 1) { currentStep++; updateWizard(); } });
+    prevBtn.addEventListener('click', () => { if (currentStep > 0) { currentStep--; updateWizard(); } });
     finishBtn.addEventListener('click', () => { window.location.href = '/dashboard'; });
 
     reloadData().then(() => updateWizard());
@@ -253,13 +379,78 @@ async function initDashboard() {
         items.forEach(item => {
             const option = document.createElement('option');
             option.value = item.id;
-            // FIX: Explicitly check for section to format the name correctly.
             if (viewType === 'section') {
                 option.textContent = `${item.grade_name} - ${item.name}`;
             } else {
                 option.textContent = item.name;
             }
             viewValueSelect.appendChild(option);
+        });
+    };
+
+    const renderPreferences = (preferences = []) => {
+        ui.preferencesContainer.innerHTML = '';
+        const preferencesMap = new Map(preferences.map(p => [p.timeslot_id, p.preference_type]));
+
+        const days = (allData.config && allData.config.work_days) ? allData.config.work_days.split(',') : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const periods = (allData.config && allData.config.periods_per_day) ? parseInt(allData.config.periods_per_day) : 8;
+
+        const grid = document.createElement('div');
+        grid.className = 'preferences-grid';
+
+        let headerHtml = '<div class="pref-grid-cell day-label"></div>';
+        for (let p = 1; p <= periods; p++) {
+            headerHtml += `<div class="pref-grid-cell period-label">P${p}</div>`;
+        }
+        grid.innerHTML = headerHtml;
+
+        const timeslotMap = {};
+        if (allData.timeslots) {
+            allData.timeslots.forEach(t => {
+                if (!timeslotMap[t.day_of_week]) timeslotMap[t.day_of_week] = {};
+                timeslotMap[t.day_of_week][t.period_number] = t.id;
+            });
+        }
+
+        days.forEach(day => {
+            const row = document.createElement('div');
+            row.className = 'pref-grid-row';
+            row.innerHTML += `<div class="pref-grid-cell day-label">${day}</div>`;
+            for (let p = 1; p <= periods; p++) {
+                const timeslotId = timeslotMap[day] ? timeslotMap[day][p] : null;
+                const cell = document.createElement('div');
+                cell.className = 'pref-grid-cell';
+                if (timeslotId) {
+                    const currentPref = preferencesMap.get(timeslotId) || 'neutral';
+                    cell.dataset.timeslotId = timeslotId;
+
+                    const isDesirable = currentPref === 'desirable';
+                    const isUndesirable = currentPref === 'undesirable';
+
+                    cell.innerHTML = `
+                        <button data-pref-type="desirable" class="pref-btn ${isDesirable ? 'active' : ''}" title="Desirable">D</button>
+                        <button data-pref-type="undesirable" class="pref-btn ${isUndesirable ? 'active' : ''}" title="Undesirable">U</button>
+                    `;
+                }
+                row.appendChild(cell);
+            }
+            grid.appendChild(row);
+        });
+
+        ui.preferencesContainer.appendChild(grid);
+
+        grid.addEventListener('click', (e) => {
+            if (e.target.matches('.pref-btn')) {
+                const btn = e.target;
+                const currentCell = btn.parentElement;
+                if (btn.classList.contains('active')) {
+                    btn.classList.remove('active');
+                } else {
+                    const otherBtn = currentCell.querySelector(`.pref-btn:not([data-pref-type="${btn.dataset.prefType}"])`);
+                    if (otherBtn) otherBtn.classList.remove('active');
+                    btn.classList.add('active');
+                }
+            }
         });
     };
 
@@ -278,7 +469,6 @@ async function initDashboard() {
             if (schedule && schedule.length > 0) {
                 console.log("Existing schedule found, rendering...");
                 timetableTitle.textContent = 'Full Timetable';
-                // FIX: Store the full, original schedule in the dataset only once.
                 timetableGrid.dataset.originalSchedule = JSON.stringify(schedule);
                 renderTimetable(schedule, allData);
             } else {
@@ -294,7 +484,6 @@ async function initDashboard() {
     const filterAndRender = () => {
         const viewType = viewTypeSelect.value;
         const viewId = viewValueSelect.value;
-        // FIX: Always filter from the original, full schedule.
         const originalSchedule = JSON.parse(timetableGrid.dataset.originalSchedule || '[]');
         const selectedOption = viewValueSelect.options[viewValueSelect.selectedIndex];
         timetableTitle.textContent = viewId ? `Timetable for ${selectedOption.textContent}` : 'Full Timetable';
@@ -303,7 +492,6 @@ async function initDashboard() {
 
     viewTypeSelect.addEventListener('change', () => {
         updateViewValueOptions();
-        // Reset the second dropdown and re-render the full schedule
         viewValueSelect.value = "";
         filterAndRender();
     });
@@ -323,7 +511,6 @@ async function initDashboard() {
             await postData('/api/timetable/commit', schedule);
             const finalSchedule = await (await fetch('/api/timetable')).json();
             timetableTitle.textContent = "Full Timetable";
-            // FIX: Update the original schedule dataset after generating a new one.
             timetableGrid.dataset.originalSchedule = JSON.stringify(finalSchedule);
             renderTimetable(finalSchedule, allData);
         } catch (error) {
@@ -340,34 +527,53 @@ function renderTimetable(schedule, allData, viewType = 'section', viewId = null)
     console.log(`Rendering timetable with filter: ${viewType}, ${viewId}`);
     const timetableGrid = document.getElementById('timetable-grid');
 
-    const days = allData.config.work_days ? allData.config.work_days.split(',') : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const periods = allData.config ? parseInt(allData.config.periods_per_day) || 8 : 8;
+    // --- Configuration ---
+    console.log("Configuration received by renderTimetable:", allData.config);
+    const days = (allData.config && allData.config.work_days)
+        ? allData.config.work_days.split(',')
+        : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const periods = (allData.config && allData.config.periods_per_day)
+        ? parseInt(allData.config.periods_per_day)
+        : 8;
+    const lunchBreakPeriod = (allData.config && allData.config.lunch_break_period)
+        ? parseInt(allData.config.lunch_break_period)
+        : null;
 
-    // --- Transposed Grid Logic ---
+    console.log("Effective days:", days);
+    console.log("Effective periods:", periods);
+    console.log("Effective lunch break:", lunchBreakPeriod);
+
+    // --- Grid Header ---
     let gridHtml = '<div class="grid-header">Day</div>';
     for (let p = 1; p <= periods; p++) {
-        gridHtml += `<div class="grid-header">Period ${p}</div>`;
+        const isLunch = p === lunchBreakPeriod;
+        const lunchClass = isLunch ? ' lunch-break' : '';
+        gridHtml += `<div class="grid-header${lunchClass}">Period ${p}</div>`;
     }
 
+    // --- Timeslot Mapping ---
     const timeslotMap = {};
-    if(allData.timeslots) {
+    if (allData.timeslots) {
         allData.timeslots.forEach(t => {
             if (!timeslotMap[t.day_of_week]) timeslotMap[t.day_of_week] = {};
             timeslotMap[t.day_of_week][t.period_number] = t.id;
         });
     }
 
+    // --- Grid Body ---
     for (const day of days) {
-        gridHtml += `<div class="grid-cell day-label">${day}</div>`; // Day label
+        gridHtml += `<div class="grid-cell day-label">${day}</div>`;
         for (let p = 1; p <= periods; p++) {
             const timeslotId = timeslotMap[day] ? timeslotMap[day][p] || '' : '';
-            gridHtml += `<div class="grid-cell" data-timeslot-id="${timeslotId}"></div>`;
+            const isLunch = p === lunchBreakPeriod;
+            const lunchClass = isLunch ? ' lunch-break' : '';
+            gridHtml += `<div class="grid-cell${lunchClass}" data-timeslot-id="${timeslotId}"></div>`;
         }
     }
     timetableGrid.innerHTML = gridHtml;
-    // Adjust CSS grid columns dynamically
     timetableGrid.style.gridTemplateColumns = `120px repeat(${periods}, 1fr)`;
 
+    // --- Filtering Logic ---
     let filteredSchedule = schedule;
     if (viewId && viewId !== "") {
         const numericViewId = parseInt(viewId);
@@ -379,6 +585,7 @@ function renderTimetable(schedule, allData, viewType = 'section', viewId = null)
         }
     }
 
+    // --- Lesson Placement ---
     filteredSchedule.forEach(lesson => {
         const timeslot = allData.timeslots.find(t => t.id === lesson.timeslot_id);
         const course = allData.courses.find(c => c.id === lesson.course_id);

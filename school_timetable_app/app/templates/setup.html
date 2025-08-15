@@ -11,10 +11,8 @@
         <span class="step-indicator active" data-step="1">1. Settings</span>
         <span class="step-indicator" data-step="2">2. Teachers</span>
         <span class="step-indicator" data-step="3">3. Subjects</span>
-        <span class="step-indicator" data-step="4">4. Classrooms</span>
-        <span class="step-indicator" data-step="5">5. Grades & Sections</span>
-        <span class="step-indicator" data-step="6">6. Courses</span>
-        <span class="step-indicator" data-step="7">7. Constraints</span>
+        <span class="step-indicator" data-step="4">4. Grades & Sections</span>
+        <span class="step-indicator" data-step="5">5. Teacher Assignments</span>
     </div>
 
     <!-- Step 1: Settings -->
@@ -66,19 +64,9 @@
         <div class="data-list" id="subjects-list"></div>
     </div>
 
-    <!-- Step 4: Classrooms -->
+    <!-- Step 4: Grades & Sections -->
     <div class="wizard-step" id="step-4">
-        <h2>Step 4: Add Classrooms</h2>
-        <form id="form-add-classroom">
-            <input type="text" id="classroom-name" placeholder="Enter classroom name/number" required>
-            <button type="submit">Add Classroom</button>
-        </form>
-        <div class="data-list" id="classrooms-list"></div>
-    </div>
-
-    <!-- Step 5: Grades & Sections -->
-    <div class="wizard-step" id="step-5">
-        <h2>Step 5: Add Grades & Sections</h2>
+        <h2>Step 4: Add Grades & Sections</h2>
         <div class="form-group">
             <h3>Add Grade</h3>
             <form id="form-add-grade">
@@ -99,30 +87,36 @@
         </div>
     </div>
 
-    <!-- Step 6: Courses -->
-    <div class="wizard-step" id="step-6">
-        <h2>Step 6: Define Courses</h2>
-        <p>Assign a teacher and subject to a section, and specify the periods per week.</p>
-        <form id="form-add-course">
-            <select id="course-teacher-select" required><option>Select Teacher</option></select>
-            <select id="course-subject-select" required><option>Select Subject</option></select>
-            <select id="course-section-select" required><option>Select Section</option></select>
-            <input type="number" id="course-periods" placeholder="Periods per week" min="1" required>
-            <button type="submit">Add Course</button>
-        </form>
-        <div class="data-list" id="courses-list"></div>
-    </div>
+    <!-- Step 5: Teacher Assignments & Preferences -->
+    <div class="wizard-step" id="step-5">
+        <h2>Step 5: Teacher Assignments & Preferences</h2>
+        <p>Select a teacher to manage their course load and scheduling preferences.</p>
 
-    <!-- Step 7: Constraints -->
-    <div class="wizard-step" id="step-7">
-        <h2>Step 7: Set Teacher Unavailability</h2>
-        <p>Mark times when a teacher is NOT available to teach.</p>
-        <form id="form-add-constraint">
-            <select id="constraint-teacher-select" required><option>Select Teacher</option></select>
-            <select id="constraint-timeslot-select" required><option>Select Timeslot</option></select>
-            <button type="submit">Add Constraint</button>
-        </form>
-        <div class="data-list" id="constraints-list"></div>
+        <div class="form-group">
+            <label for="assignment-teacher-select">Select Teacher:</label>
+            <select id="assignment-teacher-select" required>
+                <option value="">-- Select a Teacher --</option>
+            </select>
+        </div>
+
+        <!-- This container will be managed by JavaScript -->
+        <div id="teacher-assignment-details" class="hidden">
+            <h3>Assign Subjects and Sections</h3>
+            <div id="subject-assignment-container">
+                <!-- JS will render subject blocks here -->
+            </div>
+            <button id="btn-add-subject-assignment" class="btn-secondary">Add Another Subject</button>
+            <hr>
+
+            <h3>Set Scheduling Preferences</h3>
+            <p>Set times that are "undesirable" (e.g., during lunch) or "desirable" for this teacher.</p>
+            <div id="preferences-container">
+                <!-- JS will render the preferences UI here -->
+            </div>
+
+            <hr>
+            <button id="btn-save-teacher-assignments" class="btn-primary">Save All Assignments for this Teacher</button>
+        </div>
     </div>
 
     <!-- Navigation -->

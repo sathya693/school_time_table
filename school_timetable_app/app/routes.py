@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from . import db
-from .models import Teacher, Subject, Classroom, Grade, Section, Course, Constraint, Timeslot, Configuration, Lesson
+from .models import Teacher, Subject, Grade, Section, Course, Timeslot, Configuration, Lesson, Preference
 from sqlalchemy.exc import IntegrityError
 import logging
 
@@ -33,7 +33,6 @@ def get_all_data():
 
     teachers = [serialize(t) for t in Teacher.query.all()]
     subjects = [serialize(s) for s in Subject.query.all()]
-    classrooms = [serialize(c) for c in Classroom.query.all()]
     grades = [serialize(g) for g in Grade.query.all()]
     sections = [serialize(s) for s in Section.query.all()]
     courses = [serialize(c) for c in Course.query.all()]
@@ -49,7 +48,6 @@ def get_all_data():
     response = {
         "teachers": teachers,
         "subjects": subjects,
-        "classrooms": classrooms,
         "grades": grades,
         "sections": sections,
         "courses": courses,
@@ -117,10 +115,6 @@ def create_teacher():
 def create_subject():
     return handle_post(Subject, ['name'])
 
-@main.route('/api/data/classroom', methods=['POST'])
-def create_classroom():
-    return handle_post(Classroom, ['name'])
-
 @main.route('/api/data/grade', methods=['POST'])
 def create_grade():
     return handle_post(Grade, ['name'])
@@ -133,9 +127,101 @@ def create_section():
 def create_course():
     return handle_post(Course, ['subject_id', 'teacher_id', 'section_id', 'periods_per_week'])
 
-@main.route('/api/data/constraint', methods=['POST'])
-def create_constraint():
-    return handle_post(Constraint, ['teacher_id', 'timeslot_id'])
+@main.route('/api/teacher/<int:teacher_id>/assignments', methods=['GET'])
+def get_teacher_assignments(teacher_id):
+    """
+    Fetches all existing course assignments and preferences for a given teacher.
+    """
+    teacher = Teacher.query.get(teacher_id)
+    if not teacher:
+        return jsonify({"error": "Teacher not found."}), 404
+
+    # Fetch courses and group by subject
+    courses_q = Course.query.filter_by(teacher_id=teacher_id).all()
+    assignments_map = {}
+    for course in courses_q:
+        if course.subject_id not in assignments_map:
+            assignments_map[course.subject_id] = {
+                'subject_id': course.subject_id,
+                'periods_per_week': course.periods_per_week,
+                'sections': []
+            }
+        assignments_map[course.subject_id]['sections'].append(course.section_id)
+
+    # Fetch preferences
+    preferences_q = Preference.query.filter_by(teacher_id=teacher_id).all()
+    preferences = [
+        {
+            'id': p.id,
+            'timeslot_id': p.timeslot_id,
+            'preference_type': p.preference_type,
+            'subject_id': p.subject_id
+        } for p in preferences_q
+    ]
+
+    response = {
+        "assignments": list(assignments_map.values()),
+        "preferences": preferences
+    }
+    return jsonify(response), 200
+
+@main.route('/api/teacher/<int:teacher_id>/assignments', methods=['POST'])
+def update_teacher_assignments(teacher_id):
+    """
+    Handles bulk creation/update of a teacher's courses and preferences.
+    This is a transactional operation.
+    """
+    data = request.get_json()
+    if not data or 'assignments' not in data or 'preferences' not in data:
+        return jsonify({"error": "Invalid payload. 'assignments' and 'preferences' are required."}), 400
+
+    teacher = Teacher.query.get(teacher_id)
+    if not teacher:
+        return jsonify({"error": "Teacher not found."}), 404
+
+    try:
+        # Start a transaction
+        with db.session.begin_nested():
+            # Clear existing courses and preferences for this teacher
+            Course.query.filter_by(teacher_id=teacher_id).delete()
+            Preference.query.filter_by(teacher_id=teacher_id).delete()
+
+            # Create new courses
+            new_courses = []
+            for assignment in data['assignments']:
+                subject_id = assignment.get('subject_id')
+                periods_per_week = assignment.get('periods_per_week')
+                for section_id in assignment.get('sections', []):
+                    new_course = Course(
+                        teacher_id=teacher_id,
+                        subject_id=subject_id,
+                        section_id=section_id,
+                        periods_per_week=periods_per_week
+                    )
+                    new_courses.append(new_course)
+            db.session.add_all(new_courses)
+
+            # Create new preferences
+            new_preferences = []
+            for pref in data['preferences']:
+                new_preference = Preference(
+                    teacher_id=teacher_id,
+                    subject_id=pref.get('subject_id'),
+                    timeslot_id=pref.get('timeslot_id'),
+                    preference_type=pref.get('preference_type')
+                )
+                new_preferences.append(new_preference)
+            db.session.add_all(new_preferences)
+
+        # Commit the transaction
+        db.session.commit()
+
+        return jsonify({"message": f"Assignments for teacher {teacher_id} updated successfully."}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating assignments for teacher {teacher_id}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to update assignments due to a server error."}), 500
 
 from .scheduler.generator import TimetableGenerator
 from .scheduler.rescheduler import TimetableRescheduler
@@ -153,22 +239,18 @@ def validate_timetable():
         for lesson in lessons:
             ts_id = lesson.timeslot_id
             if ts_id not in schedule_map:
-                schedule_map[ts_id] = {'teachers': set(), 'sections': set(), 'classrooms': set()}
+                schedule_map[ts_id] = {'teachers': set(), 'sections': set()}
 
             teacher_id = lesson.course.teacher_id
             section_id = lesson.course.section_id
-            classroom_id = lesson.classroom_id
 
             if teacher_id in schedule_map[ts_id]['teachers']:
                 conflicts.append(f"Teacher Conflict: Teacher ID {teacher_id} is double-booked at timeslot {ts_id}.")
             if section_id in schedule_map[ts_id]['sections']:
                 conflicts.append(f"Section Conflict: Section ID {section_id} is double-booked at timeslot {ts_id}.")
-            if classroom_id in schedule_map[ts_id]['classrooms']:
-                conflicts.append(f"Classroom Conflict: Classroom ID {classroom_id} is double-booked at timeslot {ts_id}.")
 
             schedule_map[ts_id]['teachers'].add(teacher_id)
             schedule_map[ts_id]['sections'].add(section_id)
-            schedule_map[ts_id]['classrooms'].add(classroom_id)
 
         logging.info(f"Validation complete. Found {len(conflicts)} conflicts.")
         return jsonify({"conflicts": conflicts}), 200
@@ -231,25 +313,23 @@ def reschedule_lesson(course_id):
         # Fetch all data needed for generation
         courses_q = Course.query.all()
         timeslots_q = Timeslot.query.all()
-        classrooms_q = Classroom.query.all()
-        constraints_q = Constraint.query.all()
+        preferences_q = Preference.query.all()
 
         courses = [{'id': c.id, 'teacher_id': c.teacher_id, 'section_id': c.section_id, 'periods_per_week': c.periods_per_week} for c in courses_q]
         timeslots = [{'id': t.id, 'day': t.day_of_week, 'period': t.period_number} for t in timeslots_q]
-        classrooms = [{'id': c.id, 'name': c.name} for c in classrooms_q]
-        constraints = [{'teacher_id': c.teacher_id, 'timeslot_id': c.timeslot_id} for c in constraints_q]
+        preferences = [{'teacher_id': p.teacher_id, 'timeslot_id': p.timeslot_id, 'preference_type': p.preference_type, 'subject_id': p.subject_id} for p in preferences_q]
 
         config_q = Configuration.query.all()
         config = {c.key: c.value for c in config_q}
 
         # Generate a temporary schedule to work with
-        temp_generator = TimetableGenerator(courses, timeslots, classrooms, constraints, config)
+        temp_generator = TimetableGenerator(courses, timeslots, config, preferences)
         schedule = temp_generator.generate()
         if schedule is None:
             return jsonify({"error": "Could not generate a base schedule to find solutions."}), 500
 
         # Use the rescheduler to find solutions
-        rescheduler = TimetableRescheduler(schedule, courses, timeslots, constraints)
+        rescheduler = TimetableRescheduler(schedule, courses, timeslots, config, preferences)
         solutions = rescheduler.find_solutions_for_conflict(course_id)
 
         return jsonify(solutions), 200
@@ -270,7 +350,6 @@ def get_timetable():
                 'lesson_id': l.id,
                 'course_id': l.course_id,
                 'timeslot_id': l.timeslot_id,
-                'classroom_id': l.classroom_id,
             } for l in lessons_q
         ]
         return jsonify(schedule), 200
@@ -296,8 +375,7 @@ def commit_timetable():
                 # We only need the ones that map to the Lesson model's columns.
                 new_lesson = Lesson(
                     course_id=lesson_data['course_id'],
-                    timeslot_id=lesson_data['timeslot_id'],
-                    classroom_id=lesson_data['classroom_id']
+                    timeslot_id=lesson_data['timeslot_id']
                 )
                 new_lessons.append(new_lesson)
             db.session.add_all(new_lessons)
@@ -316,18 +394,16 @@ def generate_timetable():
     try:
         courses_q = Course.query.all()
         timeslots_q = Timeslot.query.all()
-        classrooms_q = Classroom.query.all()
-        constraints_q = Constraint.query.all()
+        preferences_q = Preference.query.all()
 
         courses = [{'id': c.id, 'teacher_id': c.teacher_id, 'section_id': c.section_id, 'periods_per_week': c.periods_per_week} for c in courses_q]
         timeslots = [{'id': t.id, 'day': t.day_of_week, 'period': t.period_number} for t in timeslots_q]
-        classrooms = [{'id': c.id, 'name': c.name} for c in classrooms_q]
-        constraints = [{'teacher_id': c.teacher_id, 'timeslot_id': c.timeslot_id} for c in constraints_q]
+        preferences = [{'teacher_id': p.teacher_id, 'timeslot_id': p.timeslot_id, 'preference_type': p.preference_type, 'subject_id': p.subject_id} for p in preferences_q]
 
         config_q = Configuration.query.all()
         config = {c.key: c.value for c in config_q}
 
-        generator = TimetableGenerator(courses, timeslots, classrooms, constraints, config)
+        generator = TimetableGenerator(courses, timeslots, config, preferences)
         schedule = generator.generate()
 
         if schedule is None:
