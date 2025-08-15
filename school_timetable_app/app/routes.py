@@ -85,6 +85,10 @@ def get_all_data():
     for section in sections:
         section['grade_name'] = grade_map.get(section['grade_id'])
 
+    # Fetch section-subject mappings
+    sections_q = Section.query.all()
+    section_subject_map = {s.id: [subj.id for subj in s.subjects] for s in sections_q}
+
     response = {
         "teachers": teachers,
         "subjects": subjects,
@@ -93,6 +97,7 @@ def get_all_data():
         "courses": courses,
         "timeslots": timeslots,
         "config": config,
+        "section_subject_map": section_subject_map,
     }
     return jsonify(response), 200
 
@@ -203,6 +208,39 @@ def create_section():
 @main.route('/api/data/course', methods=['POST'])
 def create_course():
     return handle_post(Course, ['subject_id', 'teacher_id', 'section_id', 'periods_per_week'])
+
+# --- API Routes for Section-Subject Assignments ---
+
+@main.route('/api/section/<int:section_id>/subjects', methods=['GET'])
+def get_section_subjects(section_id):
+    """Fetches the list of subjects assigned to a specific section."""
+    section = Section.query.get_or_404(section_id)
+    subject_ids = [subject.id for subject in section.subjects]
+    return jsonify(subject_ids), 200
+
+@main.route('/api/section/<int:section_id>/subjects', methods=['POST'])
+def update_section_subjects(section_id):
+    """Updates the subjects assigned to a specific section."""
+    section = Section.query.get_or_404(section_id)
+    data = request.get_json()
+    if not isinstance(data, list):
+        return jsonify({"error": "Invalid payload. Expected a list of subject IDs."}), 400
+
+    try:
+        # Get all subject objects from the provided IDs
+        subjects = Subject.query.filter(Subject.id.in_(data)).all()
+        # Ensure all provided IDs were valid subjects
+        if len(subjects) != len(data):
+            return jsonify({"error": "One or more invalid subject IDs provided."}), 400
+
+        section.subjects = subjects
+        db.session.commit()
+        return jsonify({"message": f"Subjects for section {section_id} updated successfully."}), 200
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating subjects for section {section_id}: {e}", exc_info=True)
+        return jsonify({"error": "A server error occurred while updating subjects."}), 500
+
 
 @main.route('/api/teacher/<int:teacher_id>/assignments', methods=['GET'])
 def get_teacher_assignments(teacher_id):

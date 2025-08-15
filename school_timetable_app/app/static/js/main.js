@@ -52,6 +52,11 @@ function initSetupWizard() {
         subjectsList: document.getElementById('subjects-list'),
         gradesList: document.getElementById('grades-list'),
         sectionsList: document.getElementById('sections-list'),
+
+        // New Section-Subject UI
+        sectionSubjectSelect: document.getElementById('section-subject-select'),
+        sectionSubjectChecklist: document.getElementById('section-subject-checklist'),
+        btnSaveSectionSubjects: document.getElementById('btn-save-section-subjects'),
     };
 
     const reloadData = async () => {
@@ -106,6 +111,7 @@ function initSetupWizard() {
         };
         populateSelect(ui.sectionGradeSelect, allData.grades, 'Grade', 'id', 'name');
         populateSelect(ui.assignmentTeacherSelect, allData.teachers, 'Teacher', 'id', 'name');
+        populateSelect(ui.sectionSubjectSelect, allData.sections, 'Section', 'id', 'name');
     };
 
     const handleFormSubmit = (form, url, getBody) => {
@@ -179,6 +185,58 @@ function initSetupWizard() {
     handleFormSubmit(ui.subjectForm, '/api/data/subject', f => ({ name: f.elements['subject-name'].value.trim() }));
     handleFormSubmit(ui.gradeForm, '/api/data/grade', f => ({ name: f.elements['grade-name'].value.trim() }));
     handleFormSubmit(ui.sectionForm, '/api/data/section', f => ({ name: f.elements['section-name'].value.trim(), grade_id: f.elements['section-grade-select'].value }));
+
+    // --- Section-Subject Assignment Logic ---
+
+    const renderSubjectChecklist = (assignedSubjectIds = []) => {
+        const assignedSet = new Set(assignedSubjectIds);
+        ui.sectionSubjectChecklist.innerHTML = '';
+        allData.subjects.forEach(subject => {
+            const isChecked = assignedSet.has(subject.id);
+            const label = document.createElement('label');
+            label.innerHTML = `<input type="checkbox" value="${subject.id}" ${isChecked ? 'checked' : ''}> ${subject.name}`;
+            ui.sectionSubjectChecklist.appendChild(label);
+        });
+    };
+
+    if (ui.sectionSubjectSelect) {
+        ui.sectionSubjectSelect.addEventListener('change', async (e) => {
+            const sectionId = e.target.value;
+            if (!sectionId) {
+                ui.sectionSubjectChecklist.innerHTML = '<p>Please select a section first.</p>';
+                return;
+            }
+            try {
+                const response = await fetch(`/api/section/${sectionId}/subjects`);
+                if (!response.ok) throw new Error('Failed to fetch subjects for section.');
+                const assignedSubjectIds = await response.json();
+                renderSubjectChecklist(assignedSubjectIds);
+            } catch (error) {
+                console.error(error);
+                ui.sectionSubjectChecklist.innerHTML = `<p class="error-cell">${error.message}</p>`;
+            }
+        });
+    }
+
+    if (ui.btnSaveSectionSubjects) {
+        ui.btnSaveSectionSubjects.addEventListener('click', async () => {
+            const sectionId = ui.sectionSubjectSelect.value;
+            if (!sectionId) {
+                alert('Please select a section before saving.');
+                return;
+            }
+
+            const selectedSubjectIds = Array.from(ui.sectionSubjectChecklist.querySelectorAll('input:checked'))
+                .map(input => parseInt(input.value));
+
+            try {
+                await postData(`/api/section/${sectionId}/subjects`, selectedSubjectIds);
+                alert('Subject assignments saved successfully!');
+            } catch (error) {
+                alert(`Error saving subject assignments: ${error.message}`);
+            }
+        });
+    }
 
     // --- Summary Tab Logic ---
 
@@ -268,7 +326,33 @@ function initSetupWizard() {
         removeBtn.className = 'btn-remove-assignment';
         removeBtn.onclick = () => row.remove();
 
+        // Add cascading dropdown logic
+        sectionSelect.addEventListener('change', () => {
+            const selectedSectionId = sectionSelect.value;
+            const validSubjectIds = new Set(allData.section_subject_map[selectedSectionId] || []);
+
+            // Preserve the currently selected subject if it's still valid
+            const currentSubjectId = subjectSelect.value;
+
+            let subjectOptions = '<option value="">-- Select Subject --</option>';
+            allData.subjects.forEach(s => {
+                if (validSubjectIds.has(s.id)) {
+                    subjectOptions += `<option value="${s.id}">${s.name}</option>`;
+                }
+            });
+            subjectSelect.innerHTML = subjectOptions;
+
+            // Restore selection if possible
+            if (validSubjectIds.has(parseInt(currentSubjectId))) {
+                subjectSelect.value = currentSubjectId;
+            }
+        });
+
         row.append(subjectSelect, sectionSelect, periodsInput, removeBtn);
+
+        // Trigger the change event on initial render to populate subjects correctly
+        sectionSelect.dispatchEvent(new Event('change'));
+
         return row;
     };
 

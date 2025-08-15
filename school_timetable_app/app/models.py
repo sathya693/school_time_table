@@ -7,11 +7,18 @@ class Teacher(db.Model):
     courses = db.relationship('Course', backref='teacher', lazy=True)
     preferences = db.relationship('Preference', backref='teacher', lazy=True)
 
+# Association table for the many-to-many relationship between sections and subjects
+section_subjects = db.Table('section_subjects',
+    db.Column('section_id', db.Integer, db.ForeignKey('sections.id'), primary_key=True),
+    db.Column('subject_id', db.Integer, db.ForeignKey('subjects.id'), primary_key=True)
+)
+
 class Subject(db.Model):
     __tablename__ = 'subjects'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     courses = db.relationship('Course', backref='subject', lazy=True)
+    # The 'sections' backref will be created by the relationship in the Section model
 
 class Grade(db.Model):
     __tablename__ = 'grades'
@@ -25,6 +32,9 @@ class Section(db.Model):
     name = db.Column(db.String(50), nullable=False)
     grade_id = db.Column(db.Integer, db.ForeignKey('grades.id'), nullable=False)
     courses = db.relationship('Course', backref='section', lazy=True)
+    subjects = db.relationship('Subject', secondary=section_subjects,
+                               backref=db.backref('sections', lazy='dynamic'),
+                               lazy='dynamic')
 
 class Timeslot(db.Model):
     __tablename__ = 'timeslots'

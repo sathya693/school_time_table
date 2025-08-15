@@ -81,6 +81,19 @@
             </form>
             <div class="data-list" id="sections-list"></div>
         </div>
+        <hr>
+        <div class="form-group">
+            <h3>Assign Subjects to a Section</h3>
+            <p>Select a section to manage the subjects it offers.</p>
+            <select id="section-subject-select" required>
+                <option value="">-- Select a Section --</option>
+            </select>
+            <div id="section-subject-checklist" class="sections-grid" style="margin-top: 1rem;">
+                <!-- JS will populate this with subject checkboxes -->
+                <p>Please select a section first.</p>
+            </div>
+            <button id="btn-save-section-subjects" class="btn-primary">Save Subjects for Section</button>
+        </div>
     </div>
 
     <!-- Step 5: Teacher Assignments & Preferences -->

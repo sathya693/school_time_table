@@ -70,3 +70,37 @@ def test_generate_timetable_endpoint(client, test_app):
         assert isinstance(data, list)
         assert len(data) == 1
         assert data[0]['course_id'] == course.id
+
+def test_section_subject_assignment_api(client, test_app):
+    """Test the GET and POST endpoints for section-subject assignments."""
+    with test_app.app_context():
+        # 1. Create data needed for the test
+        s1 = Subject(name='Physics')
+        s2 = Subject(name='Chemistry')
+        g = Grade(name='Grade 9')
+        sec = Section(name='9A', grade=g)
+        db.session.add_all([s1, s2, g, sec])
+        db.session.commit()
+
+        section = Section.query.filter_by(name='9A').first()
+        subjects = Subject.query.limit(2).all()
+        assert len(subjects) >= 2
+        subject_ids = [s.id for s in subjects]
+
+        # 2. Assign subjects to the section via POST
+        post_response = client.post(f'/api/section/{section.id}/subjects', json=subject_ids)
+        assert post_response.status_code == 200
+        assert 'updated successfully' in json.loads(post_response.data)['message']
+
+        # 3. Verify the assignment via GET
+        get_response = client.get(f'/api/section/{section.id}/subjects')
+        assert get_response.status_code == 200
+        assigned_ids = json.loads(get_response.data)
+        assert sorted(assigned_ids) == sorted(subject_ids)
+
+        # 4. Verify the mapping in the main /api/data endpoint
+        data_response = client.get('/api/data')
+        assert data_response.status_code == 200
+        api_data = json.loads(data_response.data)
+        assert 'section_subject_map' in api_data
+        assert sorted(api_data['section_subject_map'][str(section.id)]) == sorted(subject_ids)
