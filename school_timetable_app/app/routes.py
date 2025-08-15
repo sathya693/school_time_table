@@ -1,6 +1,10 @@
 from flask import Blueprint, render_template, request, jsonify
 from . import db
-from .models import Teacher, Subject, Classroom, Grade, Section, Course, Constraint, Timeslot
+from .models import Teacher, Subject, Classroom, Grade, Section, Course, Constraint, Timeslot, Configuration
+from sqlalchemy.exc import IntegrityError
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 main = Blueprint('main', __name__)
 
@@ -34,6 +38,8 @@ def get_all_data():
     sections = [serialize(s) for s in Section.query.all()]
     courses = [serialize(c) for c in Course.query.all()]
     timeslots = [serialize(t) for t in Timeslot.query.all()]
+    config = {c.key: c.value for c in Configuration.query.all()}
+
 
     # Add grade name to sections for easier use in frontend
     grade_map = {g['id']: g['name'] for g in grades}
@@ -48,23 +54,55 @@ def get_all_data():
         "sections": sections,
         "courses": courses,
         "timeslots": timeslots,
+        "config": config,
     }
     return jsonify(response), 200
+
+@main.route('/api/data/setting', methods=['POST'])
+def update_setting():
+    """Endpoint to update a configuration setting (upsert)."""
+    data = request.get_json()
+    logging.info(f"Received POST for setting with data: {data}")
+    if not data or 'key' not in data or 'value' not in data:
+        return jsonify({"error": "Invalid payload. 'key' and 'value' are required."}), 400
+
+    key = data['key']
+    value = data['value']
+
+    setting = Configuration.query.filter_by(key=key).first()
+    if setting:
+        logging.info(f"Updating setting '{key}' from '{setting.value}' to '{value}'")
+        setting.value = value
+    else:
+        logging.info(f"Creating new setting '{key}' with value '{value}'")
+        setting = Configuration(key=key, value=value)
+        db.session.add(setting)
+
+    db.session.commit()
+    return jsonify({"message": "Setting updated successfully"}), 200
 
 def handle_post(model, required_fields):
     """Generic handler for creating a new model instance."""
     data = request.get_json()
+    logging.info(f"Received POST request for {model.__name__} with data: {data}")
     if not data or not all(field in data for field in required_fields):
+        logging.warning(f"Invalid payload for {model.__name__}: {data}")
         return jsonify({"error": f"Invalid payload. Required fields: {required_fields}"}), 400
 
     try:
         instance = model(**data)
         db.session.add(instance)
         db.session.commit()
+        logging.info(f"Successfully created {model.__name__} with id {instance.id}")
         return jsonify({"message": f"{model.__name__} created successfully", "id": instance.id}), 201
+    except IntegrityError as e:
+        db.session.rollback()
+        logging.warning(f"IntegrityError on {model.__name__} creation: {e.orig}")
+        return jsonify({"error": "Item already exists.", "details": "An item with these details (e.g., name) already exists."}), 409
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Failed to create item.", "details": str(e)}), 500
+        logging.error(f"Generic exception on {model.__name__} creation: {e}", exc_info=True)
+        return jsonify({"error": "Failed to create item due to a server error.", "details": str(e)}), 500
 
 @main.route('/api/data/teacher', methods=['POST'])
 def create_teacher():

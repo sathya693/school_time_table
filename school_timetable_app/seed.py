@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import Teacher, Subject, Classroom, Grade, Section, Timeslot, Constraint, Course
+from app.models import Teacher, Subject, Classroom, Grade, Section, Timeslot, Constraint, Course, Configuration
 
 def seed_data():
     """Populates the database with a realistic set of sample data."""
@@ -17,15 +17,22 @@ def seed_data():
         Classroom.query.delete()
         Subject.query.delete()
         Teacher.query.delete()
+        Configuration.query.delete()
+        db.session.commit()
+
+        # --- Create Default Configuration ---
+        print("Creating default configuration...")
+        default_periods = Configuration(key='periods_per_day', value='8')
+        db.session.add(default_periods)
         db.session.commit()
 
         # --- Create Timeslots ---
         print("Creating timeslots...")
         days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-        periods = [
-            ('08:30', '09:15'), ('09:20', '10:05'), ('10:10', '10:55'), ('11:00', '11:45'),
-            ('12:45', '13:30'), ('13:35', '14:20'), ('14:25', '15:10'), ('15:15', '16:00')
-        ]
+        periods_count = int(default_periods.value)
+        # Dummy times for dynamic period counts
+        periods = [(f"{8+i}:00", f"{8+i}:45") for i in range(periods_count)]
+
         timeslots = []
         for day in days:
             for i, (start, end) in enumerate(periods):

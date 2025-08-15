@@ -68,3 +68,10 @@ class Lesson(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     timeslot_id = db.Column(db.Integer, db.ForeignKey('timeslots.id'), nullable=False)
     classroom_id = db.Column(db.Integer, db.ForeignKey('classrooms.id'), nullable=False)
+
+class Configuration(db.Model):
+    """A key-value store for application settings."""
+    __tablename__ = 'configurations'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(50), unique=True, nullable=False)
+    value = db.Column(db.String(200), nullable=False)

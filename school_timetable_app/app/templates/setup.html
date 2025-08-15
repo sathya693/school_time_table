@@ -4,58 +4,106 @@
 {% block content %}
 <div class="wizard-container">
     <h1>Setup Wizard</h1>
-    <p>Follow these steps to configure your school's data.</p>
+    <p>Follow these steps to configure your school's data. The data you enter here will be used to generate the timetable.</p>
 
     <!-- Step Indicators -->
     <div class="step-indicators">
-        <span class="step-indicator active" data-step="1">1. Teachers</span>
-        <span class="step-indicator" data-step="2">2. Subjects</span>
-        <span class="step-indicator" data-step="3">3. Classrooms</span>
-        <span class="step-indicator" data-step="4">4. Grades & Sections</span>
-        <span class="step-indicator" data-step="5">5. Courses</span>
-        <span class="step-indicator" data-step="6">6. Constraints</span>
+        <span class="step-indicator active" data-step="1">1. Settings</span>
+        <span class="step-indicator" data-step="2">2. Teachers</span>
+        <span class="step-indicator" data-step="3">3. Subjects</span>
+        <span class="step-indicator" data-step="4">4. Classrooms</span>
+        <span class="step-indicator" data-step="5">5. Grades & Sections</span>
+        <span class="step-indicator" data-step="6">6. Courses</span>
+        <span class="step-indicator" data-step="7">7. Constraints</span>
     </div>
 
-    <!-- Step 1: Teachers -->
+    <!-- Step 1: Settings -->
     <div class="wizard-step active" id="step-1">
-        <h2>Step 1: Add Teachers</h2>
+        <h2>Step 1: School Settings</h2>
+        <form id="form-add-setting">
+            <label for="periods-per-day">Number of Periods per Day:</label>
+            <input type="number" id="periods-per-day" value="8" min="1" max="12" required>
+            <button type="submit">Save Settings</button>
+        </form>
+    </div>
+
+    <!-- Step 2: Teachers -->
+    <div class="wizard-step" id="step-2">
+        <h2>Step 2: Add Teachers</h2>
         <form id="form-add-teacher">
             <input type="text" id="teacher-name" placeholder="Enter teacher's name" required>
             <button type="submit">Add Teacher</button>
         </form>
-        <div class="data-list" id="teachers-list">
-            <!-- Teachers will be listed here -->
-        </div>
+        <div class="data-list" id="teachers-list"></div>
     </div>
 
-    <!-- Step 2: Subjects -->
-    <div class="wizard-step" id="step-2">
-        <h2>Step 2: Add Subjects</h2>
+    <!-- Step 3: Subjects -->
+    <div class="wizard-step" id="step-3">
+        <h2>Step 3: Add Subjects</h2>
         <form id="form-add-subject">
             <input type="text" id="subject-name" placeholder="Enter subject name" required>
             <button type="submit">Add Subject</button>
         </form>
-        <div class="data-list" id="subjects-list">
-            <!-- Subjects will be listed here -->
+        <div class="data-list" id="subjects-list"></div>
+    </div>
+
+    <!-- Step 4: Classrooms -->
+    <div class="wizard-step" id="step-4">
+        <h2>Step 4: Add Classrooms</h2>
+        <form id="form-add-classroom">
+            <input type="text" id="classroom-name" placeholder="Enter classroom name/number" required>
+            <button type="submit">Add Classroom</button>
+        </form>
+        <div class="data-list" id="classrooms-list"></div>
+    </div>
+
+    <!-- Step 5: Grades & Sections -->
+    <div class="wizard-step" id="step-5">
+        <h2>Step 5: Add Grades & Sections</h2>
+        <div class="form-group">
+            <h3>Add Grade</h3>
+            <form id="form-add-grade">
+                <input type="text" id="grade-name" placeholder="e.g., Grade 9" required>
+                <button type="submit">Add Grade</button>
+            </form>
+            <div class="data-list" id="grades-list"></div>
+        </div>
+        <hr>
+        <div class="form-group">
+            <h3>Add Section to a Grade</h3>
+            <form id="form-add-section">
+                <select id="section-grade-select" required></select>
+                <input type="text" id="section-name" placeholder="e.g., Section A" required>
+                <button type="submit">Add Section</button>
+            </form>
+            <div class="data-list" id="sections-list"></div>
         </div>
     </div>
 
-    <!-- Add other steps similarly -->
-    <div class="wizard-step" id="step-3">
-        <h2>Step 3: Add Classrooms</h2>
-        <!-- Form for classrooms -->
-    </div>
-    <div class="wizard-step" id="step-4">
-        <h2>Step 4: Add Grades & Sections</h2>
-        <!-- Form for grades and sections -->
-    </div>
-    <div class="wizard-step" id="step-5">
-        <h2>Step 5: Define Courses</h2>
-        <!-- Form for courses -->
-    </div>
+    <!-- Step 6: Courses -->
     <div class="wizard-step" id="step-6">
-        <h2>Step 6: Set Constraints</h2>
-        <!-- Form for constraints -->
+        <h2>Step 6: Define Courses</h2>
+        <p>Assign a teacher and subject to a section, and specify the periods per week.</p>
+        <form id="form-add-course">
+            <select id="course-teacher-select" required><option>Select Teacher</option></select>
+            <select id="course-subject-select" required><option>Select Subject</option></select>
+            <select id="course-section-select" required><option>Select Section</option></select>
+            <input type="number" id="course-periods" placeholder="Periods per week" min="1" required>
+            <button type="submit">Add Course</button>
+        </form>
+        <div class="data-list" id="courses-list"></div>
+    </div>
+
+    <!-- Step 7: Constraints -->
+    <div class="wizard-step" id="step-7">
+        <h2>Step 7: Set Teacher Unavailability</h2>
+        <p>Mark times when a teacher is NOT available to teach.</p>
+        <form id="form-add-constraint">
+            <select id="constraint-teacher-select" required><option>Select Teacher</option></select>
+            <select id="constraint-timeslot-select" required><option>Select Timeslot</option></select>
+            <button type="submit">Add Constraint</button>
+        </form>
+        <div class="data-list" id="constraints-list"></div>
     </div>
 
     <!-- Navigation -->
