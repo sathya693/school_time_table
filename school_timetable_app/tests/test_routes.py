@@ -1,62 +1,53 @@
-import unittest
+import pytest
 import json
 from app import create_app, db
 from app.models import Teacher, Subject, Grade, Section, Classroom, Timeslot, Course
 
-class TestRoutes(unittest.TestCase):
-
-    def setUp(self):
-        """Set up a test environment."""
-        self.app = create_app('testing')
-        self.app_context = self.app.app_context()
-        self.app_context.push()
+@pytest.fixture(scope='module')
+def test_app():
+    """Set up a test Flask app for the whole module."""
+    app = create_app('testing')
+    with app.app_context():
         db.create_all()
-        self.client = self.app.test_client()
-
-    def tearDown(self):
-        """Tear down the test environment."""
+        yield app
         db.session.remove()
         db.drop_all()
-        self.app_context.pop()
 
-    def test_get_all_data_endpoint(self):
-        """Test the GET /api/data endpoint."""
-        response = self.client.get('/api/data')
-        self.assertEqual(response.status_code, 200)
-        # We expect an empty data structure initially
-        data = json.loads(response.data)
-        self.assertIn('teachers', data)
-        self.assertIn('subjects', data)
-        self.assertIn('grades', data)
+@pytest.fixture(scope='module')
+def client(test_app):
+    """A test client for the app."""
+    return test_app.test_client()
 
-    def test_create_teacher_endpoint(self):
-        """Test the POST /api/data/teacher endpoint for successful creation."""
-        payload = {'name': 'Dr. Turing'}
-        response = self.client.post(
-            '/api/data/teacher',
-            data=json.dumps(payload),
-            content_type='application/json'
-        )
-        self.assertEqual(response.status_code, 201) # 201 Created
-        data = json.loads(response.data)
-        self.assertEqual(data['message'], 'Teacher created successfully')
-        self.assertEqual(Teacher.query.count(), 1)
-        self.assertEqual(Teacher.query.first().name, 'Dr. Turing')
+def test_get_all_data_endpoint(client):
+    """Test the GET /api/data endpoint."""
+    response = client.get('/api/data')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert 'teachers' in data
+    assert 'subjects' in data
+    assert 'grades' in data
 
-    def test_create_teacher_endpoint_invalid_payload(self):
-        """Test the POST /api/data/teacher endpoint with invalid data."""
-        payload = {'fullname': 'Dr. Turing'} # Invalid key
-        response = self.client.post(
-            '/api/data/teacher',
-            data=json.dumps(payload),
-            content_type='application/json'
-        )
-        self.assertEqual(response.status_code, 400) # 400 Bad Request
-        data = json.loads(response.data)
-        self.assertIn('error', data)
+def test_create_teacher_endpoint(client):
+    """Test the POST /api/data/teacher endpoint for successful creation."""
+    payload = {'name': 'Dr. Turing'}
+    response = client.post('/api/data/teacher', json=payload)
+    assert response.status_code == 201
+    data = json.loads(response.data)
+    assert data['message'] == 'Teacher created successfully'
+    assert Teacher.query.count() == 1
+    assert Teacher.query.first().name == 'Dr. Turing'
 
-    def test_generate_timetable_endpoint(self):
-        """Test the POST /api/timetable/generate endpoint with data."""
+def test_create_teacher_endpoint_invalid_payload(client):
+    """Test the POST /api/data/teacher endpoint with invalid data."""
+    payload = {'fullname': 'Dr. Turing'} # Invalid key
+    response = client.post('/api/data/teacher', json=payload)
+    assert response.status_code == 400
+    data = json.loads(response.data)
+    assert 'error' in data
+
+def test_generate_timetable_endpoint(client, test_app):
+    """Test the POST /api/timetable/generate endpoint with data."""
+    with test_app.app_context():
         # Setup: Create necessary data in the test database
         teacher = Teacher(name='Test Teacher')
         subject = Subject(name='Test Subject')
@@ -72,11 +63,11 @@ class TestRoutes(unittest.TestCase):
         db.session.commit()
 
         # Action: Call the endpoint
-        response = self.client.post('/api/timetable/generate')
+        response = client.post('/api/timetable/generate')
 
         # Assert: Check for a successful response and valid schedule
-        self.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         data = json.loads(response.data)
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 1) # Expecting one lesson to be scheduled
-        self.assertEqual(data[0]['course_id'], course.id)
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]['course_id'] == course.id

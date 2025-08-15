@@ -135,7 +135,91 @@ def create_constraint():
 from .scheduler.generator import TimetableGenerator
 from .scheduler.rescheduler import TimetableRescheduler
 
-# --- API Routes for Timetable Generation & Rescheduling ---
+# --- API Routes for Timetable Generation & Editing ---
+
+@main.route('/api/timetable/validate', methods=['GET'])
+def validate_timetable():
+    """
+    Validates the current committed timetable for any conflicts.
+    """
+    try:
+        lessons = Lesson.query.all()
+
+        conflicts = []
+
+        # Use a dictionary to easily find clashes
+        # Key: timeslot_id, Value: dict with 'teachers' and 'sections' sets
+        schedule_map = {}
+
+        for lesson in lessons:
+            ts_id = lesson.timeslot_id
+            if ts_id not in schedule_map:
+                schedule_map[ts_id] = {'teachers': set(), 'sections': set()}
+
+            teacher_id = lesson.course.teacher_id
+            section_id = lesson.course.section_id
+
+            # Check for teacher conflict
+            if teacher_id in schedule_map[ts_id]['teachers']:
+                conflicts.append(f"Teacher Conflict: Teacher {teacher_id} is double-booked at timeslot {ts_id}.")
+
+            # Check for section conflict
+            if section_id in schedule_map[ts_id]['sections']:
+                conflicts.append(f"Section Conflict: Section {section_id} is double-booked at timeslot {ts_id}.")
+
+            schedule_map[ts_id]['teachers'].add(teacher_id)
+            schedule_map[ts_id]['sections'].add(section_id)
+
+        logging.info(f"Validation complete. Found {len(conflicts)} conflicts.")
+        return jsonify({"conflicts": conflicts}), 200
+
+    except Exception as e:
+        logging.error(f"Error during validation: {e}", exc_info=True)
+        return jsonify({"error": "Failed to validate timetable."}), 500
+
+
+@main.route('/api/lesson/update', methods=['POST'])
+def update_lesson():
+    """
+    Updates a lesson's timeslot, performing validation first.
+    """
+    data = request.get_json()
+    if not data or 'lesson_id' not in data or 'new_timeslot_id' not in data:
+        return jsonify({"error": "Invalid payload. 'lesson_id' and 'new_timeslot_id' are required."}), 400
+
+    lesson_id = data['lesson_id']
+    new_timeslot_id = data['new_timeslot_id']
+
+    lesson = Lesson.query.get(lesson_id)
+    if not lesson:
+        return jsonify({"error": "Lesson not found."}), 404
+
+    # Basic validation: Check for teacher/section clashes at the new timeslot
+    teacher_clash = Lesson.query.filter(
+        Lesson.course.has(teacher_id=lesson.course.teacher_id),
+        Lesson.timeslot_id == new_timeslot_id
+    ).first()
+    section_clash = Lesson.query.filter(
+        Lesson.course.has(section_id=lesson.course.section_id),
+        Lesson.timeslot_id == new_timeslot_id
+    ).first()
+
+    if teacher_clash:
+        return jsonify({"error": "Validation failed: Teacher is already scheduled at this time."}), 409
+    if section_clash:
+        return jsonify({"error": "Validation failed: Section is already scheduled at this time."}), 409
+
+    # All good, update the lesson
+    try:
+        lesson.timeslot_id = new_timeslot_id
+        db.session.commit()
+        logging.info(f"Successfully moved lesson {lesson_id} to timeslot {new_timeslot_id}.")
+        return jsonify({"message": "Lesson updated successfully."}), 200
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating lesson {lesson_id}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to update lesson."}), 500
+
 
 @main.route('/api/lesson/<int:course_id>/reschedule', methods=['GET'])
 def reschedule_lesson(course_id):
@@ -171,6 +255,58 @@ def reschedule_lesson(course_id):
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred during rescheduling."}), 500
 
+
+@main.route('/api/timetable', methods=['GET'])
+def get_timetable():
+    """
+    Fetches the currently committed schedule from the database.
+    """
+    try:
+        lessons_q = Lesson.query.all()
+        schedule = [
+            {
+                'lesson_id': l.id,
+                'course_id': l.course_id,
+                'timeslot_id': l.timeslot_id,
+                'classroom_id': l.classroom_id,
+            } for l in lessons_q
+        ]
+        return jsonify(schedule), 200
+    except Exception as e:
+        logging.error(f"Error fetching timetable: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch timetable."}), 500
+
+@main.route('/api/timetable/commit', methods=['POST'])
+def commit_timetable():
+    """
+    Receives a generated schedule and commits it to the database.
+    """
+    schedule = request.get_json()
+    if not isinstance(schedule, list):
+        return jsonify({"error": "Invalid payload. Expected a list of lessons."}), 400
+
+    try:
+        # Clear the existing lesson plan
+        Lesson.query.delete()
+
+        new_lessons = []
+        for lesson_data in schedule:
+            new_lesson = Lesson(
+                course_id=lesson_data['course_id'],
+                timeslot_id=lesson_data['timeslot_id'],
+                classroom_id=lesson_data['classroom_id']
+            )
+            new_lessons.append(new_lesson)
+
+        db.session.add_all(new_lessons)
+        db.session.commit()
+        logging.info(f"Successfully committed {len(new_lessons)} lessons to the database.")
+        return jsonify({"message": "Timetable committed successfully."}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error committing timetable: {e}", exc_info=True)
+        return jsonify({"error": "Failed to commit timetable to database."}), 500
 
 @main.route('/api/timetable/generate', methods=['POST'])
 def generate_timetable():

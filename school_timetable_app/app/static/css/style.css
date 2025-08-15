@@ -174,3 +174,22 @@ input[type="text"] {
 .lesson-subject { font-weight: 700; }
 .lesson-teacher { font-size: 0.9em; color: var(--dark-gray); }
 .lesson-section { font-size: 0.9em; }
+
+/* --- Edit Mode & Drag-and-Drop --- */
+.edit-mode .lesson {
+    cursor: grab;
+}
+.edit-mode .lesson:active {
+    cursor: grabbing;
+}
+.lesson.dragging {
+    opacity: 0.5;
+    border: 2px dashed var(--primary-color);
+}
+.grid-cell.drag-over {
+    background-color: var(--secondary-color);
+    opacity: 0.3;
+}
+button.active {
+    background-color: var(--danger-color);
+}
