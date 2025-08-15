@@ -7,22 +7,18 @@ The application is built with a Python/Flask backend, a SQLite database for offl
 ## Core Features
 
 *   **Automated Timetable Generation:** Uses a sophisticated algorithm to automatically generate a complete, conflict-free timetable based on your school's unique data.
-*   **Comprehensive Setup Wizard:** A step-by-step wizard allows you to input all necessary school data:
-    -   School-wide settings (e.g., periods per day)
-    -   Teachers
-    -   Subjects
-    -   Classrooms
-    -   Grades and their respective Sections
-    -   Courses (linking teachers, subjects, and sections)
-    -   Teacher unavailability constraints
-*   **Interactive Dashboard:** A central dashboard displays the generated timetable in a clear grid format.
-*   **Dynamic View Filtering:** Instantly filter the timetable to view the schedule for a specific teacher, section, or classroom using intuitive dropdown menus.
-*   **Manual Drag-and-Drop Editing:** An "Edit Mode" allows you to manually fine-tune the schedule by simply dragging and dropping lessons into new timeslots. The system validates each move to prevent you from creating new conflicts.
-*   **On-Demand Conflict Validation:** At any time, you can ask the system to validate the entire schedule. It will provide a clear list of any existing conflicts (e.g., a teacher being double-booked).
+*   **Comprehensive Setup Wizard:** A step-by-step wizard allows you to input all necessary school data.
+*   **Interactive Dashboard:** A central dashboard displays the generated timetable in a clear grid format with dynamic filtering.
+*   **Manual Drag-and-Drop Editing:** An "Edit Mode" allows you to manually fine-tune the schedule.
+*   **On-Demand Conflict Validation:** At any time, you can validate the entire schedule for conflicts.
 
-## Quickstart: Automated Setup
+## Getting Started
 
-For the easiest setup, use the automated scripts. They will create a virtual environment, install dependencies, and set up the database for you.
+The application includes a fully automated setup process to make getting started as simple as possible.
+
+### Step 1: Initial Setup (Run this only once)
+
+First, run the setup script for your operating system. This will create a virtual environment, install all required dependencies, and prepare the application.
 
 -   **On macOS or Linux:**
     ```bash
@@ -38,74 +34,39 @@ For the easiest setup, use the automated scripts. They will create a virtual env
     .\setup.bat
     ```
 
-After the setup is complete, follow the final instructions printed in the terminal to run the application.
+### Step 2: Activate the Environment
 
-## Manual Setup Instructions
+Before running the app, you must activate the virtual environment created by the setup script.
 
-If you prefer to set up the application manually, follow these steps. All commands should be run from the project's root directory (the one containing this README).
+-   **On macOS or Linux:**
+    ```bash
+    source venv/bin/activate
+    ```
 
-### 1. Setup the Environment
+-   **On Windows:**
+    ```bat
+    venv\Scripts\activate.bat
+    ```
 
-It is highly recommended to use a Python virtual environment.
+### Step 3: Run the Application
 
-```bash
-# Create a virtual environment
-python -m venv venv
-
-# Activate the virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate.bat
-
-# Install the required packages
-pip install -r school_timetable_app/requirements.txt
-```
-
-### 2. Configure Environment Variables
-
-Before running the application, you must set the following environment variables.
+Now, you can run the application. The first time you run this command, it will **automatically create and seed the database for you.**
 
 ```bash
-# On macOS/Linux:
-export FLASK_APP=school_timetable_app/run.py
-export PYTHONPATH=.
+# Set the required SECRET_KEY
+# (On Linux/macOS)
 export SECRET_KEY='a-very-secret-and-strong-key-that-you-generate'
+# (On Windows)
+# set SECRET_KEY='a-very-secret-and-strong-key-that-you-generate'
 
-# On Windows:
-set FLASK_APP=school_timetable_app\run.py
-set PYTHONPATH=.
-set SECRET_KEY='a-very-secret-and-strong-key-that-you-generate'
-```
-**Note:** The `SECRET_KEY` should be a long, random string of characters. Do not use the example key in a real deployment.
-
-### 3. Initialize the Database
-
-The application uses Flask-Migrate to manage the database schema. With the environment variables set, run the following command:
-
-```bash
-# Apply the migrations to create the database and tables
-flask db upgrade
-```
-
-### 4. Seed the Database with Sample Data
-
-To populate the database with sample data, run the seed script:
-
-```bash
-python school_timetable_app/seed.py
-```
-
-### 5. Run the Application
-
-Start the Flask development server:
-
-```bash
+# Run the app
 python school_timetable_app/run.py
 ```
 
-The application will be available at `http://127.0.0.1:5000`.
+The application will now be running at **http://127.0.0.1:5000**.
+
+For all subsequent runs, you only need to repeat **Step 2** and **Step 3**.
 
 ## How to Use the Application
 
-For a detailed guide on how to use the web interface to add data and generate timetables, please see the **[USER_MANUAL.md](USER_MANUAL.md)**.
+For a detailed guide on how to use the web interface to add data, generate timetables, and use the editor, please see the **[USER_MANUAL.md](USER_MANUAL.md)**.
