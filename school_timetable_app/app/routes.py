@@ -144,40 +144,34 @@ from .scheduler.rescheduler import TimetableRescheduler
 
 @main.route('/api/timetable/validate', methods=['GET'])
 def validate_timetable():
-    """
-    Validates the current committed timetable for any conflicts.
-    """
+    """Validates the current timetable for teacher, section, and classroom conflicts."""
     try:
         lessons = Lesson.query.all()
-
         conflicts = []
-
-        # Use a dictionary to easily find clashes
-        # Key: timeslot_id, Value: dict with 'teachers' and 'sections' sets
         schedule_map = {}
 
         for lesson in lessons:
             ts_id = lesson.timeslot_id
             if ts_id not in schedule_map:
-                schedule_map[ts_id] = {'teachers': set(), 'sections': set()}
+                schedule_map[ts_id] = {'teachers': set(), 'sections': set(), 'classrooms': set()}
 
             teacher_id = lesson.course.teacher_id
             section_id = lesson.course.section_id
+            classroom_id = lesson.classroom_id
 
-            # Check for teacher conflict
             if teacher_id in schedule_map[ts_id]['teachers']:
-                conflicts.append(f"Teacher Conflict: Teacher {teacher_id} is double-booked at timeslot {ts_id}.")
-
-            # Check for section conflict
+                conflicts.append(f"Teacher Conflict: Teacher ID {teacher_id} is double-booked at timeslot {ts_id}.")
             if section_id in schedule_map[ts_id]['sections']:
-                conflicts.append(f"Section Conflict: Section {section_id} is double-booked at timeslot {ts_id}.")
+                conflicts.append(f"Section Conflict: Section ID {section_id} is double-booked at timeslot {ts_id}.")
+            if classroom_id in schedule_map[ts_id]['classrooms']:
+                conflicts.append(f"Classroom Conflict: Classroom ID {classroom_id} is double-booked at timeslot {ts_id}.")
 
             schedule_map[ts_id]['teachers'].add(teacher_id)
             schedule_map[ts_id]['sections'].add(section_id)
+            schedule_map[ts_id]['classrooms'].add(classroom_id)
 
         logging.info(f"Validation complete. Found {len(conflicts)} conflicts.")
         return jsonify({"conflicts": conflicts}), 200
-
     except Exception as e:
         logging.error(f"Error during validation: {e}", exc_info=True)
         return jsonify({"error": "Failed to validate timetable."}), 500
@@ -283,27 +277,23 @@ def get_timetable():
 
 @main.route('/api/timetable/commit', methods=['POST'])
 def commit_timetable():
-    """
-    Receives a generated schedule and commits it to the database.
-    """
+    """Receives a generated schedule and commits it to the database transactionally."""
     schedule = request.get_json()
     if not isinstance(schedule, list):
         return jsonify({"error": "Invalid payload. Expected a list of lessons."}), 400
 
     try:
-        # Clear the existing lesson plan
-        Lesson.query.delete()
-
-        new_lessons = []
-        for lesson_data in schedule:
-            new_lesson = Lesson(
-                course_id=lesson_data['course_id'],
-                timeslot_id=lesson_data['timeslot_id'],
-                classroom_id=lesson_data['classroom_id']
-            )
-            new_lessons.append(new_lesson)
-
-        db.session.add_all(new_lessons)
+        # Using a nested transaction ensures that if any part of this fails,
+        # the outer session is not tainted and the whole block is rolled back.
+        with db.session.begin_nested():
+            Lesson.query.delete()
+            new_lessons = []
+            for lesson_data in schedule:
+                # Ensure all required keys are present
+                if not all(k in lesson_data for k in ['course_id', 'timeslot_id', 'classroom_id']):
+                    raise ValueError("Invalid lesson data received.")
+                new_lessons.append(Lesson(**lesson_data))
+            db.session.add_all(new_lessons)
         db.session.commit()
         logging.info(f"Successfully committed {len(new_lessons)} lessons to the database.")
         return jsonify({"message": "Timetable committed successfully."}), 201
@@ -315,32 +305,29 @@ def commit_timetable():
 
 @main.route('/api/timetable/generate', methods=['POST'])
 def generate_timetable():
-    """
-    Triggers the timetable generation process and returns the result.
-    """
+    """Triggers the timetable generation process and returns the result."""
     try:
-        # 1. Fetch all necessary data from the database
         courses_q = Course.query.all()
         timeslots_q = Timeslot.query.all()
         classrooms_q = Classroom.query.all()
         constraints_q = Constraint.query.all()
 
-        # 2. Format data for the generator
         courses = [{'id': c.id, 'teacher_id': c.teacher_id, 'section_id': c.section_id, 'periods_per_week': c.periods_per_week} for c in courses_q]
         timeslots = [{'id': t.id, 'day': t.day_of_week, 'period': t.period_number} for t in timeslots_q]
         classrooms = [{'id': c.id, 'name': c.name} for c in classrooms_q]
         constraints = [{'teacher_id': c.teacher_id, 'timeslot_id': c.timeslot_id} for c in constraints_q]
 
-        # 3. Instantiate and run the generator
         generator = TimetableGenerator(courses, timeslots, classrooms, constraints)
         schedule = generator.generate()
 
         if schedule is None:
-            return jsonify({"error": "Failed to generate timetable. The problem might be unsolvable with the given constraints."}), 500
+            logging.warning("Timetable generation failed, returning unsolvable error.")
+            return jsonify({
+                "error": "Failed to generate timetable.",
+                "details": "The problem is likely unsolvable with the given constraints. Please ensure teachers have enough available slots for their assigned courses."
+            }), 422 # Unprocessable Entity
 
-        # 4. Return the generated schedule
         return jsonify(schedule), 200
-
     except Exception as e:
-        # Log the exception e
-        return jsonify({"error": "An unexpected error occurred during timetable generation."}), 500
+        logging.error(f"An unexpected error occurred during timetable generation: {e}", exc_info=True)
+        return jsonify({"error": "An unexpected server error occurred."}), 500

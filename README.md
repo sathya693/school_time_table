@@ -62,24 +62,33 @@ venv\Scripts\activate.bat
 pip install -r school_timetable_app/requirements.txt
 ```
 
-### 2. Initialize the Database
+### 2. Configure Environment Variables
 
-The application uses Flask-Migrate to manage the database schema.
+Before running the application, you must set the following environment variables.
 
 ```bash
-# Set environment variables for Flask
 # On macOS/Linux:
 export FLASK_APP=school_timetable_app/run.py
 export PYTHONPATH=.
+export SECRET_KEY='a-very-secret-and-strong-key-that-you-generate'
+
 # On Windows:
 set FLASK_APP=school_timetable_app\run.py
 set PYTHONPATH=.
+set SECRET_KEY='a-very-secret-and-strong-key-that-you-generate'
+```
+**Note:** The `SECRET_KEY` should be a long, random string of characters. Do not use the example key in a real deployment.
 
+### 3. Initialize the Database
+
+The application uses Flask-Migrate to manage the database schema. With the environment variables set, run the following command:
+
+```bash
 # Apply the migrations to create the database and tables
 flask db upgrade
 ```
 
-### 3. Seed the Database with Sample Data
+### 4. Seed the Database with Sample Data
 
 To populate the database with sample data, run the seed script:
 
@@ -87,7 +96,7 @@ To populate the database with sample data, run the seed script:
 python school_timetable_app/seed.py
 ```
 
-### 4. Run the Application
+### 5. Run the Application
 
 Start the Flask development server:
 
