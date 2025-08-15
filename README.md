@@ -2,13 +2,28 @@
 
 This is a full-stack web application designed to help schools automatically generate and manually edit their class schedules. It features a hybrid algorithmic approach for schedule generation to handle complex constraints, and provides an intuitive web interface for management.
 
+For a guide on how to use the application, see [USER_MANUAL.md](USER_MANUAL.md).
+For a technical breakdown of the architecture, see [TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md).
+For a high-level summary of the workflow, see [SUMMARY.md](SUMMARY.md).
+
 ## Core Features
 
-*   **Automated Timetable Generation:** Uses a sophisticated algorithm to automatically generate a complete, conflict-free timetable.
-*   **Comprehensive Setup Wizard:** A step-by-step wizard allows you to input all school data.
-*   **Interactive Dashboard:** A central dashboard displays the timetable with dynamic filtering.
-*   **Manual Drag-and-Drop Editing:** An "Edit Mode" allows for manual fine-tuning of the schedule.
-*   **On-Demand Conflict Validation:** Validate the entire schedule for conflicts at any time.
+*   **Dynamic School Configuration:** Configure the number of working days and periods per day for your school. The application's timeslots will dynamically adjust.
+*   **Granular Curriculum Mapping:** Define which subjects are taught in each specific section (e.g., Grade 9A takes Physics, but Grade 6A takes General Science).
+*   **Flexible Teacher Assignments:** Assign teachers to the specific courses they teach, with per-course control over the number of periods per week.
+*   **Constraint-Based Scheduling:** The automated generator respects hard constraints, such as teacher availability and undesirable timeslots.
+*   **Analytical Summary:** A dedicated summary page provides insights into teacher workload and subject staffing levels, helping to identify potential resource shortages or surpluses before finalizing the schedule.
+*   **Interactive Dashboard:** A central dashboard displays the generated timetable with dynamic filtering by teacher or section.
+
+## Technology Stack
+
+*   **Backend:** Python 3
+    *   **Framework:** Flask
+    *   **ORM:** Flask-SQLAlchemy
+    *   **Database Migrations:** Flask-Migrate
+*   **Database:** SQLite
+*   **Frontend:** Vanilla JavaScript (ES6), HTML5, CSS3
+*   **Testing:** Pytest
 
 ## Getting Started: The One-Command Setup
 
@@ -25,7 +40,7 @@ python school_timetable_app/run.py
 The first time you run this command, the script will automatically:
 1.  Check for required Python packages (like Flask) and install them if they are missing.
 2.  Create the SQLite database file (`app-dev.db`).
-3.  Set up the database schema.
+3.  Set up the database schema by applying all migrations.
 4.  Populate the database with a full set of sample data so you can start using the application immediately.
 
 On all subsequent runs, the script will detect that the setup is complete and will simply start the web server.
@@ -41,7 +56,3 @@ While not required to run the application, it is highly recommended to use a Pyt
     -   On macOS/Linux: `source venv/bin/activate`
     -   On Windows: `venv\Scripts\activate.bat`
 3.  **Run the application:** `python school_timetable_app/run.py`
-
-## How to Use the Application
-
-For a detailed guide on how to use the web interface, please see the **[USER_MANUAL.md](USER_MANUAL.md)**.
