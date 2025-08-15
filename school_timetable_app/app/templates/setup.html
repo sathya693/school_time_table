@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Setup Wizard - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <h1>Setup Wizard</h1>
+    <p>Follow these steps to configure your school's data.</p>
+
+    <!-- Step Indicators -->
+    <div class="step-indicators">
+        <span class="step-indicator active" data-step="1">1. Teachers</span>
+        <span class="step-indicator" data-step="2">2. Subjects</span>
+        <span class="step-indicator" data-step="3">3. Classrooms</span>
+        <span class="step-indicator" data-step="4">4. Grades & Sections</span>
+        <span class="step-indicator" data-step="5">5. Courses</span>
+        <span class="step-indicator" data-step="6">6. Constraints</span>
+    </div>
+
+    <!-- Step 1: Teachers -->
+    <div class="wizard-step active" id="step-1">
+        <h2>Step 1: Add Teachers</h2>
+        <form id="form-add-teacher">
+            <input type="text" id="teacher-name" placeholder="Enter teacher's name" required>
+            <button type="submit">Add Teacher</button>
+        </form>
+        <div class="data-list" id="teachers-list">
+            <!-- Teachers will be listed here -->
+        </div>
+    </div>
+
+    <!-- Step 2: Subjects -->
+    <div class="wizard-step" id="step-2">
+        <h2>Step 2: Add Subjects</h2>
+        <form id="form-add-subject">
+            <input type="text" id="subject-name" placeholder="Enter subject name" required>
+            <button type="submit">Add Subject</button>
+        </form>
+        <div class="data-list" id="subjects-list">
+            <!-- Subjects will be listed here -->
+        </div>
+    </div>
+
+    <!-- Add other steps similarly -->
+    <div class="wizard-step" id="step-3">
+        <h2>Step 3: Add Classrooms</h2>
+        <!-- Form for classrooms -->
+    </div>
+    <div class="wizard-step" id="step-4">
+        <h2>Step 4: Add Grades & Sections</h2>
+        <!-- Form for grades and sections -->
+    </div>
+    <div class="wizard-step" id="step-5">
+        <h2>Step 5: Define Courses</h2>
+        <!-- Form for courses -->
+    </div>
+    <div class="wizard-step" id="step-6">
+        <h2>Step 6: Set Constraints</h2>
+        <!-- Form for constraints -->
+    </div>
+
+    <!-- Navigation -->
+    <div class="wizard-navigation">
+        <button id="prev-btn" style="display: none;">Previous</button>
+        <button id="next-btn">Next</button>
+        <button id="finish-btn" style="display: none;">Finish</button>
+    </div>
+</div>
+{% endblock %}
