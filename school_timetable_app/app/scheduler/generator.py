@@ -90,6 +90,9 @@ class TimetableGenerator:
 
         random.shuffle(lessons_to_schedule) # Introduce randomness
 
+        # Shuffle timeslots to ensure a more uniform distribution
+        random.shuffle(self.timeslots)
+
         for lesson in lessons_to_schedule:
             placed = False
             # Find the first available and valid slot
