@@ -237,6 +237,72 @@ function initSetupWizard() {
         }
     };
 
+    const renderPreferences = (preferences = []) => {
+        ui.preferencesContainer.innerHTML = '';
+        const preferencesMap = new Map(preferences.map(p => [p.timeslot_id, p.preference_type]));
+
+        const days = (allData.config && allData.config.work_days) ? allData.config.work_days.split(',') : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const periods = (allData.config && allData.config.periods_per_day) ? parseInt(allData.config.periods_per_day) : 8;
+
+        const grid = document.createElement('div');
+        grid.className = 'preferences-grid';
+
+        let headerHtml = '<div class="pref-grid-cell day-label"></div>';
+        for (let p = 1; p <= periods; p++) {
+            headerHtml += `<div class="pref-grid-cell period-label">P${p}</div>`;
+        }
+        grid.innerHTML = headerHtml;
+
+        const timeslotMap = {};
+        if (allData.timeslots) {
+            allData.timeslots.forEach(t => {
+                if (!timeslotMap[t.day_of_week]) timeslotMap[t.day_of_week] = {};
+                timeslotMap[t.day_of_week][t.period_number] = t.id;
+            });
+        }
+
+        days.forEach(day => {
+            const row = document.createElement('div');
+            row.className = 'pref-grid-row';
+            row.innerHTML += `<div class="pref-grid-cell day-label">${day}</div>`;
+            for (let p = 1; p <= periods; p++) {
+                const timeslotId = timeslotMap[day] ? timeslotMap[day][p] : null;
+                const cell = document.createElement('div');
+                cell.className = 'pref-grid-cell';
+                if (timeslotId) {
+                    const currentPref = preferencesMap.get(timeslotId) || 'neutral';
+                    cell.dataset.timeslotId = timeslotId;
+
+                    const isDesirable = currentPref === 'desirable';
+                    const isUndesirable = currentPref === 'undesirable';
+
+                    cell.innerHTML = `
+                        <button data-pref-type="desirable" class="pref-btn ${isDesirable ? 'active' : ''}" title="Desirable">D</button>
+                        <button data-pref-type="undesirable" class="pref-btn ${isUndesirable ? 'active' : ''}" title="Undesirable">U</button>
+                    `;
+                }
+                row.appendChild(cell);
+            }
+            grid.appendChild(row);
+        });
+
+        ui.preferencesContainer.appendChild(grid);
+
+        grid.addEventListener('click', (e) => {
+            if (e.target.matches('.pref-btn')) {
+                const btn = e.target;
+                const currentCell = btn.parentElement;
+                if (btn.classList.contains('active')) {
+                    btn.classList.remove('active');
+                } else {
+                    const otherBtn = currentCell.querySelector(`.pref-btn:not([data-pref-type="${btn.dataset.prefType}"])`);
+                    if (otherBtn) otherBtn.classList.remove('active');
+                    btn.classList.add('active');
+                }
+            }
+        });
+    };
+
     const handleTeacherSelection = async (teacherId) => {
         if (!teacherId) {
             ui.teacherAssignmentDetails.classList.add('hidden');
@@ -377,72 +443,6 @@ async function initDashboard() {
                 option.textContent = item.name;
             }
             viewValueSelect.appendChild(option);
-        });
-    };
-
-    const renderPreferences = (preferences = []) => {
-        ui.preferencesContainer.innerHTML = '';
-        const preferencesMap = new Map(preferences.map(p => [p.timeslot_id, p.preference_type]));
-
-        const days = (allData.config && allData.config.work_days) ? allData.config.work_days.split(',') : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-        const periods = (allData.config && allData.config.periods_per_day) ? parseInt(allData.config.periods_per_day) : 8;
-
-        const grid = document.createElement('div');
-        grid.className = 'preferences-grid';
-
-        let headerHtml = '<div class="pref-grid-cell day-label"></div>';
-        for (let p = 1; p <= periods; p++) {
-            headerHtml += `<div class="pref-grid-cell period-label">P${p}</div>`;
-        }
-        grid.innerHTML = headerHtml;
-
-        const timeslotMap = {};
-        if (allData.timeslots) {
-            allData.timeslots.forEach(t => {
-                if (!timeslotMap[t.day_of_week]) timeslotMap[t.day_of_week] = {};
-                timeslotMap[t.day_of_week][t.period_number] = t.id;
-            });
-        }
-
-        days.forEach(day => {
-            const row = document.createElement('div');
-            row.className = 'pref-grid-row';
-            row.innerHTML += `<div class="pref-grid-cell day-label">${day}</div>`;
-            for (let p = 1; p <= periods; p++) {
-                const timeslotId = timeslotMap[day] ? timeslotMap[day][p] : null;
-                const cell = document.createElement('div');
-                cell.className = 'pref-grid-cell';
-                if (timeslotId) {
-                    const currentPref = preferencesMap.get(timeslotId) || 'neutral';
-                    cell.dataset.timeslotId = timeslotId;
-
-                    const isDesirable = currentPref === 'desirable';
-                    const isUndesirable = currentPref === 'undesirable';
-
-                    cell.innerHTML = `
-                        <button data-pref-type="desirable" class="pref-btn ${isDesirable ? 'active' : ''}" title="Desirable">D</button>
-                        <button data-pref-type="undesirable" class="pref-btn ${isUndesirable ? 'active' : ''}" title="Undesirable">U</button>
-                    `;
-                }
-                row.appendChild(cell);
-            }
-            grid.appendChild(row);
-        });
-
-        ui.preferencesContainer.appendChild(grid);
-
-        grid.addEventListener('click', (e) => {
-            if (e.target.matches('.pref-btn')) {
-                const btn = e.target;
-                const currentCell = btn.parentElement;
-                if (btn.classList.contains('active')) {
-                    btn.classList.remove('active');
-                } else {
-                    const otherBtn = currentCell.querySelector(`.pref-btn:not([data-pref-type="${btn.dataset.prefType}"])`);
-                    if (otherBtn) otherBtn.classList.remove('active');
-                    btn.classList.add('active');
-                }
-            }
         });
     };
 
