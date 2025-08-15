@@ -55,11 +55,6 @@ class TimetableGenerator:
         if not timeslot:
             return True # Should not happen
 
-        # Check for lunch break
-        lunch_break_period = self.config.get('lunch_break_period')
-        if lunch_break_period and timeslot.get('period_number') == int(lunch_break_period):
-            return True # It's lunch time
-
         # Check teacher availability constraint
         key = (lesson['teacher_id'], timeslot_id)
         if self.prefs_map.get(key) == 'unavailable':

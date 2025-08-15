@@ -35,7 +35,6 @@ function initSetupWizard() {
         sectionForm: document.getElementById('form-add-section'),
 
         periodsInput: document.getElementById('periods-per-day'),
-        lunchBreakInput: document.getElementById('lunch-break-period'),
         workDaysGroup: document.getElementById('work-days-group'),
 
         sectionGradeSelect: document.getElementById('section-grade-select'),
@@ -81,9 +80,6 @@ function initSetupWizard() {
         if (allData.config) {
             if (ui.periodsInput && allData.config.periods_per_day) {
                 ui.periodsInput.value = allData.config.periods_per_day;
-            }
-            if (ui.lunchBreakInput && allData.config.lunch_break_period) {
-                ui.lunchBreakInput.value = allData.config.lunch_break_period;
             }
             if (ui.workDaysGroup && allData.config.work_days) {
                 const workDays = allData.config.work_days.split(',');
@@ -150,7 +146,6 @@ function initSetupWizard() {
 
             try {
                 const periodsPerDay = ui.periodsInput.value;
-                const lunchBreak = ui.lunchBreakInput.value;
                 const workDaysCheckboxes = ui.workDaysGroup.querySelectorAll('input:checked');
                 const workDays = Array.from(workDaysCheckboxes).map(cb => cb.value).join(',');
 
@@ -162,7 +157,6 @@ function initSetupWizard() {
                 const settingsToSave = [
                     { key: 'periods_per_day', value: periodsPerDay },
                     { key: 'work_days', value: workDays },
-                    { key: 'lunch_break_period', value: lunchBreak }
                 ];
 
                 await Promise.all(settingsToSave.map(setting =>
@@ -509,10 +503,8 @@ async function initDashboard() {
             }
             const schedule = await generateResponse.json();
             await postData('/api/timetable/commit', schedule);
-            const finalSchedule = await (await fetch('/api/timetable')).json();
-            timetableTitle.textContent = "Full Timetable";
-            timetableGrid.dataset.originalSchedule = JSON.stringify(finalSchedule);
-            renderTimetable(finalSchedule, allData);
+            // Reload all data from the server to ensure the UI reflects the latest config
+            await loadInitialState();
         } catch (error) {
             console.error(error);
             timetableTitle.textContent = "Error!";
@@ -535,20 +527,13 @@ function renderTimetable(schedule, allData, viewType = 'section', viewId = null)
     const periods = (allData.config && allData.config.periods_per_day)
         ? parseInt(allData.config.periods_per_day)
         : 8;
-    const lunchBreakPeriod = (allData.config && allData.config.lunch_break_period)
-        ? parseInt(allData.config.lunch_break_period)
-        : null;
-
     console.log("Effective days:", days);
     console.log("Effective periods:", periods);
-    console.log("Effective lunch break:", lunchBreakPeriod);
 
     // --- Grid Header ---
     let gridHtml = '<div class="grid-header">Day</div>';
     for (let p = 1; p <= periods; p++) {
-        const isLunch = p === lunchBreakPeriod;
-        const lunchClass = isLunch ? ' lunch-break' : '';
-        gridHtml += `<div class="grid-header${lunchClass}">Period ${p}</div>`;
+        gridHtml += `<div class="grid-header">Period ${p}</div>`;
     }
 
     // --- Timeslot Mapping ---
@@ -565,9 +550,7 @@ function renderTimetable(schedule, allData, viewType = 'section', viewId = null)
         gridHtml += `<div class="grid-cell day-label">${day}</div>`;
         for (let p = 1; p <= periods; p++) {
             const timeslotId = timeslotMap[day] ? timeslotMap[day][p] || '' : '';
-            const isLunch = p === lunchBreakPeriod;
-            const lunchClass = isLunch ? ' lunch-break' : '';
-            gridHtml += `<div class="grid-cell${lunchClass}" data-timeslot-id="${timeslotId}"></div>`;
+            gridHtml += `<div class="grid-cell" data-timeslot-id="${timeslotId}"></div>`;
         }
     }
     timetableGrid.innerHTML = gridHtml;

@@ -23,8 +23,7 @@ def seed_data():
         print("Creating default configuration...")
         config_items = [
             Configuration(key='periods_per_day', value='9'),
-            Configuration(key='work_days', value='Monday,Tuesday,Wednesday,Thursday,Friday'),
-            Configuration(key='lunch_break_period', value='5')
+            Configuration(key='work_days', value='Monday,Tuesday,Wednesday,Thursday,Friday')
         ]
         db.session.add_all(config_items)
         db.session.commit()
