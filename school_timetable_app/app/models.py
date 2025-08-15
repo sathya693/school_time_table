@@ -33,8 +33,8 @@ class Section(db.Model):
     grade_id = db.Column(db.Integer, db.ForeignKey('grades.id'), nullable=False)
     courses = db.relationship('Course', backref='section', lazy=True)
     subjects = db.relationship('Subject', secondary=section_subjects,
-                               backref=db.backref('sections', lazy='dynamic'),
-                               lazy='dynamic')
+                               backref=db.backref('sections', lazy=True),
+                               lazy=True)
 
 class Timeslot(db.Model):
     __tablename__ = 'timeslots'
