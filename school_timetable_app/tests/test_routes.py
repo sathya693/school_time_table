@@ -1,7 +1,7 @@
 import unittest
 import json
 from app import create_app, db
-from app.models import Teacher
+from app.models import Teacher, Subject, Grade, Section, Classroom, Timeslot, Course
 
 class TestRoutes(unittest.TestCase):
 
@@ -56,10 +56,27 @@ class TestRoutes(unittest.TestCase):
         self.assertIn('error', data)
 
     def test_generate_timetable_endpoint(self):
-        """Test the POST /api/timetable/generate endpoint."""
+        """Test the POST /api/timetable/generate endpoint with data."""
+        # Setup: Create necessary data in the test database
+        teacher = Teacher(name='Test Teacher')
+        subject = Subject(name='Test Subject')
+        grade = Grade(name='Test Grade')
+        section = Section(name='Test Section', grade=grade)
+        classroom = Classroom(name='Test Room')
+        timeslot = Timeslot(day_of_week='Monday', period_number=1, start_time='09:00', end_time='10:00')
+        db.session.add_all([teacher, subject, grade, section, classroom, timeslot])
+        db.session.commit()
+
+        course = Course(teacher_id=teacher.id, subject_id=subject.id, section_id=section.id, periods_per_week=1)
+        db.session.add(course)
+        db.session.commit()
+
+        # Action: Call the endpoint
         response = self.client.post('/api/timetable/generate')
-        # This might be an async task, so we check for a success-like response
-        self.assertIn(response.status_code, [200, 202]) # 200 OK or 202 Accepted
+
+        # Assert: Check for a successful response and valid schedule
+        self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
-        self.assertIn('message', data)
-        self.assertEqual(data['message'], 'Timetable generation started.')
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1) # Expecting one lesson to be scheduled
+        self.assertEqual(data[0]['course_id'], course.id)

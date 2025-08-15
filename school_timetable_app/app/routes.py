@@ -1,50 +1,153 @@
 from flask import Blueprint, render_template, request, jsonify
 from . import db
-from .models import Teacher, Subject, Classroom, Section, Course, Constraint
+from .models import Teacher, Subject, Classroom, Grade, Section, Course, Constraint, Timeslot
 
 main = Blueprint('main', __name__)
 
 # Page-rendering routes
 @main.route('/')
 def index():
-    """Serves the main dashboard page."""
     return render_template('dashboard.html')
 
 @main.route('/dashboard')
 def dashboard():
-    """Serves the main dashboard page."""
     return render_template('dashboard.html')
 
 @main.route('/setup')
 def setup():
-    """Serves the setup wizard page."""
     return render_template('setup.html')
 
+# --- API Routes for Data Management ---
 
-# API routes (to be implemented fully later)
 @main.route('/api/data', methods=['GET'])
 def get_all_data():
-    # This is a placeholder implementation.
-    # It will be expanded to query the database.
+    """Endpoint to fetch all initial data for the setup wizard."""
+    teachers = [t.name for t in Teacher.query.all()]
+    subjects = [s.name for s in Subject.query.all()]
+    classrooms = [c.name for c in Classroom.query.all()]
+    grades = {g.id: g.name for g in Grade.query.all()}
+    sections = {s.id: {'name': s.name, 'grade': grades.get(s.grade_id)} for s in Section.query.all()}
+
     response = {
-        "teachers": [],
-        "subjects": [],
-        "grades": [],
-        "sections": [],
-        "classrooms": []
+        "teachers": teachers,
+        "subjects": subjects,
+        "classrooms": classrooms,
+        "grades": list(grades.values()),
+        "sections": list(sections.values()),
     }
     return jsonify(response), 200
 
+def handle_post(model, required_fields):
+    """Generic handler for creating a new model instance."""
+    data = request.get_json()
+    if not data or not all(field in data for field in required_fields):
+        return jsonify({"error": f"Invalid payload. Required fields: {required_fields}"}), 400
+
+    try:
+        instance = model(**data)
+        db.session.add(instance)
+        db.session.commit()
+        return jsonify({"message": f"{model.__name__} created successfully", "id": instance.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Failed to create item.", "details": str(e)}), 500
+
 @main.route('/api/data/teacher', methods=['POST'])
 def create_teacher():
-    data = request.get_json()
-    if not data or 'name' not in data:
-        return jsonify({"error": "Invalid payload. 'name' is required."}), 400
+    return handle_post(Teacher, ['name'])
 
-    new_teacher = Teacher(name=data['name'])
-    db.session.add(new_teacher)
-    db.session.commit()
+@main.route('/api/data/subject', methods=['POST'])
+def create_subject():
+    return handle_post(Subject, ['name'])
 
-    return jsonify({"message": "Teacher created successfully", "id": new_teacher.id}), 201
+@main.route('/api/data/classroom', methods=['POST'])
+def create_classroom():
+    return handle_post(Classroom, ['name'])
 
-# Add other API endpoints later...
+@main.route('/api/data/grade', methods=['POST'])
+def create_grade():
+    return handle_post(Grade, ['name'])
+
+@main.route('/api/data/section', methods=['POST'])
+def create_section():
+    return handle_post(Section, ['name', 'grade_id'])
+
+@main.route('/api/data/course', methods=['POST'])
+def create_course():
+    return handle_post(Course, ['subject_id', 'teacher_id', 'section_id', 'periods_per_week'])
+
+@main.route('/api/data/constraint', methods=['POST'])
+def create_constraint():
+    return handle_post(Constraint, ['teacher_id', 'timeslot_id'])
+
+from .scheduler.generator import TimetableGenerator
+from .scheduler.rescheduler import TimetableRescheduler
+
+# --- API Routes for Timetable Generation & Rescheduling ---
+
+@main.route('/api/lesson/<int:course_id>/reschedule', methods=['GET'])
+def reschedule_lesson(course_id):
+    """
+    Finds alternative slots for a given lesson (identified by its course_id).
+    NOTE: This is a simplified implementation. It regenerates a temporary
+    schedule to find conflicts, rather than operating on a saved state.
+    """
+    try:
+        # Fetch all data needed for generation
+        courses_q = Course.query.all()
+        timeslots_q = Timeslot.query.all()
+        classrooms_q = Classroom.query.all()
+        constraints_q = Constraint.query.all()
+
+        courses = [{'id': c.id, 'teacher_id': c.teacher_id, 'section_id': c.section_id, 'periods_per_week': c.periods_per_week} for c in courses_q]
+        timeslots = [{'id': t.id, 'day': t.day_of_week, 'period': t.period_number} for t in timeslots_q]
+        classrooms = [{'id': c.id, 'name': c.name} for c in classrooms_q]
+        constraints = [{'teacher_id': c.teacher_id, 'timeslot_id': c.timeslot_id} for c in constraints_q]
+
+        # Generate a temporary schedule to work with
+        temp_generator = TimetableGenerator(courses, timeslots, classrooms, constraints)
+        schedule = temp_generator.generate()
+        if schedule is None:
+            return jsonify({"error": "Could not generate a base schedule to find solutions."}), 500
+
+        # Use the rescheduler to find solutions
+        rescheduler = TimetableRescheduler(schedule, courses, timeslots, constraints)
+        solutions = rescheduler.find_solutions_for_conflict(course_id)
+
+        return jsonify(solutions), 200
+
+    except Exception as e:
+        return jsonify({"error": "An unexpected error occurred during rescheduling."}), 500
+
+
+@main.route('/api/timetable/generate', methods=['POST'])
+def generate_timetable():
+    """
+    Triggers the timetable generation process and returns the result.
+    """
+    try:
+        # 1. Fetch all necessary data from the database
+        courses_q = Course.query.all()
+        timeslots_q = Timeslot.query.all()
+        classrooms_q = Classroom.query.all()
+        constraints_q = Constraint.query.all()
+
+        # 2. Format data for the generator
+        courses = [{'id': c.id, 'teacher_id': c.teacher_id, 'section_id': c.section_id, 'periods_per_week': c.periods_per_week} for c in courses_q]
+        timeslots = [{'id': t.id, 'day': t.day_of_week, 'period': t.period_number} for t in timeslots_q]
+        classrooms = [{'id': c.id, 'name': c.name} for c in classrooms_q]
+        constraints = [{'teacher_id': c.teacher_id, 'timeslot_id': c.timeslot_id} for c in constraints_q]
+
+        # 3. Instantiate and run the generator
+        generator = TimetableGenerator(courses, timeslots, classrooms, constraints)
+        schedule = generator.generate()
+
+        if schedule is None:
+            return jsonify({"error": "Failed to generate timetable. The problem might be unsolvable with the given constraints."}), 500
+
+        # 4. Return the generated schedule
+        return jsonify(schedule), 200
+
+    except Exception as e:
+        # Log the exception e
+        return jsonify({"error": "An unexpected error occurred during timetable generation."}), 500
