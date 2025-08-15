@@ -289,10 +289,14 @@ def commit_timetable():
             Lesson.query.delete()
             new_lessons = []
             for lesson_data in schedule:
-                # Ensure all required keys are present
-                if not all(k in lesson_data for k in ['course_id', 'timeslot_id', 'classroom_id']):
-                    raise ValueError("Invalid lesson data received.")
-                new_lessons.append(Lesson(**lesson_data))
+                # The generator's output contains extra keys.
+                # We only need the ones that map to the Lesson model's columns.
+                new_lesson = Lesson(
+                    course_id=lesson_data['course_id'],
+                    timeslot_id=lesson_data['timeslot_id'],
+                    classroom_id=lesson_data['classroom_id']
+                )
+                new_lessons.append(new_lesson)
             db.session.add_all(new_lessons)
         db.session.commit()
         logging.info(f"Successfully committed {len(new_lessons)} lessons to the database.")

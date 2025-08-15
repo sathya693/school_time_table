@@ -75,6 +75,8 @@ function initSetupWizard() {
         renderList(ui.classroomsList, allData.classrooms, c => c.name);
         renderList(ui.gradesList, allData.grades, g => g.name);
         renderList(ui.sectionsList, allData.sections, s => `${s.grade_name} - ${s.name}`);
+
+        // Correctly render Courses and Constraints lists
         const courseFormatter = c => {
             const teacher = (allData.teachers.find(t => t.id === c.teacher_id) || {}).name || 'N/A';
             const subject = (allData.subjects.find(s => s.id === c.subject_id) || {}).name || 'N/A';
@@ -83,6 +85,7 @@ function initSetupWizard() {
             return `${subject} for ${sectionName} (Taught by ${teacher}, ${c.periods_per_week}p/w)`;
         };
         renderList(ui.coursesList, allData.courses, courseFormatter);
+
         const constraintFormatter = c => {
             const teacher = (allData.teachers.find(t => t.id === c.teacher_id) || {}).name || 'N/A';
             const timeslot = allData.timeslots.find(t => t.id === c.timeslot_id);
@@ -90,6 +93,7 @@ function initSetupWizard() {
             return `${teacher} is unavailable at ${timeslotLabel}`;
         };
         renderList(ui.constraintsList, allData.constraints, constraintFormatter);
+
 
         if (ui.periodsInput && allData.config && allData.config.periods_per_day) {
             ui.periodsInput.value = allData.config.periods_per_day;
@@ -122,6 +126,11 @@ function initSetupWizard() {
         if (!form) return;
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const button = form.querySelector('button[type="submit"]');
+            const originalButtonText = button.textContent;
+            button.textContent = 'Saving...';
+            button.disabled = true;
+
             try {
                 const body = getBody(e.target);
                 if (body && Object.values(body).some(v => !v)) {
@@ -129,11 +138,24 @@ function initSetupWizard() {
                     return;
                 }
                 await postData(url, body);
-                if (form.id !== 'form-add-setting') form.reset();
+
+                if (form.id !== 'form-add-setting') {
+                    form.reset();
+                } else {
+                    button.textContent = 'Saved!';
+                    setTimeout(() => { button.textContent = originalButtonText; }, 2000);
+                }
+
                 await reloadData();
             } catch (error) {
                 console.error('Form submission error:', error.message);
                 alert(error.message);
+                button.textContent = originalButtonText;
+            } finally {
+                button.disabled = false;
+                if (form.id !== 'form-add-setting') {
+                    button.textContent = originalButtonText;
+                }
             }
         });
     };
@@ -151,6 +173,7 @@ function initSetupWizard() {
     const indicators = document.querySelectorAll('.step-indicator');
     const nextBtn = document.getElementById('next-btn');
     const prevBtn = document.getElementById('prev-btn');
+    const finishBtn = document.getElementById('finish-btn');
     let currentStep = 0;
 
     const updateWizard = () => {
@@ -158,9 +181,11 @@ function initSetupWizard() {
         indicators.forEach((indicator, index) => indicator.classList.toggle('active', index === currentStep));
         prevBtn.style.display = currentStep === 0 ? 'none' : 'inline-block';
         nextBtn.style.display = currentStep === steps.length - 1 ? 'none' : 'inline-block';
+        finishBtn.style.display = currentStep === steps.length - 1 ? 'inline-block' : 'none';
     };
     nextBtn.addEventListener('click', () => { if (currentStep < steps.length - 1) { currentStep++; updateWizard(); } });
     prevBtn.addEventListener('click', () => { if (currentStep > 0) { currentStep--; updateWizard(); } });
+    finishBtn.addEventListener('click', () => { window.location.href = '/dashboard'; });
 
     reloadData().then(() => updateWizard());
 }
