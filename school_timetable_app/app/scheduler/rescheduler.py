@@ -2,7 +2,7 @@ class TimetableRescheduler:
     """
     Finds alternative slots for a conflicting lesson.
     """
-    def __init__(self, schedule, courses, timeslots, constraints):
+    def __init__(self, schedule, courses, timeslots, constraints, config=None):
         """
         Initializes the rescheduler.
 
@@ -11,11 +11,13 @@ class TimetableRescheduler:
             courses (list of dicts): All available courses.
             timeslots (list of dicts): All available timeslots.
             constraints (list of dicts): Teacher unavailability constraints.
+            config (dict): Application configuration, e.g., lunch break period.
         """
         self.schedule = schedule
         self.courses = courses
         self.timeslots = timeslots
         self.constraints = constraints
+        self.config = config if config is not None else {}
 
         # Pre-process for faster lookups
         self.teacher_constraints = {}
@@ -26,10 +28,12 @@ class TimetableRescheduler:
 
         self.schedule_by_timeslot = {}
         for lesson in self.schedule:
-            tid = lesson['timeslot_id']
+            tid = lesson.get('timeslot_id')
             if tid not in self.schedule_by_timeslot:
                 self.schedule_by_timeslot[tid] = []
             self.schedule_by_timeslot[tid].append(lesson)
+
+        self.timeslot_map = {t['id']: t for t in self.timeslots}
 
     def find_solutions_for_conflict(self, conflicting_lesson_course_id):
         """
@@ -66,6 +70,15 @@ class TimetableRescheduler:
         """
         Checks if placing a lesson in a given timeslot violates any hard constraints.
         """
+        timeslot = self.timeslot_map.get(timeslot_id)
+        if not timeslot:
+            return True # Should not happen
+
+        # Check for lunch break
+        lunch_break_period = self.config.get('lunch_break_period')
+        if lunch_break_period and timeslot.get('period') == int(lunch_break_period):
+            return True # It's lunch time
+
         # Check teacher availability constraint
         if lesson['teacher_id'] in self.teacher_constraints and \
            timeslot_id in self.teacher_constraints[lesson['teacher_id']]:

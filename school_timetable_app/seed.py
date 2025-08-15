@@ -22,14 +22,22 @@ def seed_data():
 
         # --- Create Default Configuration ---
         print("Creating default configuration...")
-        default_periods = Configuration(key='periods_per_day', value='8')
-        db.session.add(default_periods)
+        config_items = [
+            Configuration(key='periods_per_day', value='9'),
+            Configuration(key='work_days', value='Monday,Tuesday,Wednesday,Thursday,Friday'),
+            Configuration(key='lunch_break_period', value='5')
+        ]
+        db.session.add_all(config_items)
         db.session.commit()
 
         # --- Create Timeslots ---
         print("Creating timeslots...")
-        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-        periods_count = int(default_periods.value)
+        # Fetch config values to ensure they are available
+        periods_per_day_config = Configuration.query.filter_by(key='periods_per_day').first()
+        work_days_config = Configuration.query.filter_by(key='work_days').first()
+
+        days = work_days_config.value.split(',')
+        periods_count = int(periods_per_day_config.value)
         # Dummy times for dynamic period counts
         periods = [(f"{8+i}:00", f"{8+i}:45") for i in range(periods_count)]
 

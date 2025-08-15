@@ -239,8 +239,11 @@ def reschedule_lesson(course_id):
         classrooms = [{'id': c.id, 'name': c.name} for c in classrooms_q]
         constraints = [{'teacher_id': c.teacher_id, 'timeslot_id': c.timeslot_id} for c in constraints_q]
 
+        config_q = Configuration.query.all()
+        config = {c.key: c.value for c in config_q}
+
         # Generate a temporary schedule to work with
-        temp_generator = TimetableGenerator(courses, timeslots, classrooms, constraints)
+        temp_generator = TimetableGenerator(courses, timeslots, classrooms, constraints, config)
         schedule = temp_generator.generate()
         if schedule is None:
             return jsonify({"error": "Could not generate a base schedule to find solutions."}), 500
@@ -321,7 +324,10 @@ def generate_timetable():
         classrooms = [{'id': c.id, 'name': c.name} for c in classrooms_q]
         constraints = [{'teacher_id': c.teacher_id, 'timeslot_id': c.timeslot_id} for c in constraints_q]
 
-        generator = TimetableGenerator(courses, timeslots, classrooms, constraints)
+        config_q = Configuration.query.all()
+        config = {c.key: c.value for c in config_q}
+
+        generator = TimetableGenerator(courses, timeslots, classrooms, constraints, config)
         schedule = generator.generate()
 
         if schedule is None:

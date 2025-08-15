@@ -6,7 +6,7 @@ class TimetableGenerator:
     1. Constructive Heuristic: Builds a valid initial solution.
     2. Metaheuristic Optimizer: Improves the solution using Tabu Search.
     """
-    def __init__(self, courses, timeslots, classrooms, constraints):
+    def __init__(self, courses, timeslots, classrooms, constraints, config=None):
         """
         Initializes the generator with necessary data.
 
@@ -15,11 +15,13 @@ class TimetableGenerator:
             timeslots (list of dicts): Available timeslots.
             classrooms (list of dicts): Available classrooms.
             constraints (list of dicts): Teacher unavailability constraints.
+            config (dict): Application configuration, e.g., lunch break period.
         """
         self.courses = courses
         self.timeslots = timeslots
         self.classrooms = classrooms
-        self.constraints = constraints # e.g., [{'teacher_id': 1, 'timeslot_id': 3}]
+        self.constraints = constraints
+        self.config = config if config is not None else {}
 
         # Pre-process for faster lookups
         self.teacher_constraints = {}
@@ -27,6 +29,9 @@ class TimetableGenerator:
             if c['teacher_id'] not in self.teacher_constraints:
                 self.teacher_constraints[c['teacher_id']] = set()
             self.teacher_constraints[c['teacher_id']].add(c['timeslot_id'])
+
+        # Pre-process timeslots for faster lookup
+        self.timeslot_map = {t['id']: t for t in self.timeslots}
 
     def generate(self):
         """
@@ -49,6 +54,15 @@ class TimetableGenerator:
 
     def _is_hard_constraint_violated(self, schedule, lesson, timeslot_id, classroom_id):
         """Checks for hard constraint violations for a potential lesson placement."""
+        timeslot = self.timeslot_map.get(timeslot_id)
+        if not timeslot:
+            return True # Should not happen
+
+        # Check for lunch break
+        lunch_break_period = self.config.get('lunch_break_period')
+        if lunch_break_period and timeslot.get('period_number') == int(lunch_break_period):
+            return True # It's lunch time
+
         # Check teacher availability constraint
         if lesson['teacher_id'] in self.teacher_constraints and \
            timeslot_id in self.teacher_constraints[lesson['teacher_id']]:

@@ -20,9 +20,28 @@
     <!-- Step 1: Settings -->
     <div class="wizard-step active" id="step-1">
         <h2>Step 1: School Settings</h2>
-        <form id="form-add-setting">
-            <label for="periods-per-day">Number of Periods per Day:</label>
-            <input type="number" id="periods-per-day" value="8" min="1" max="12" required>
+        <form id="form-settings">
+            <div class="form-group">
+                <label for="periods-per-day">Number of Periods per Day:</label>
+                <input type="number" id="periods-per-day" name="periods_per_day" value="9" min="1" max="15" required>
+            </div>
+            <div class="form-group">
+                <label>Working Days:</label>
+                <div class="checkbox-group" id="work-days-group">
+                    <label><input type="checkbox" name="work_days" value="Monday" checked> Monday</label>
+                    <label><input type="checkbox" name="work_days" value="Tuesday" checked> Tuesday</label>
+                    <label><input type="checkbox" name="work_days" value="Wednesday" checked> Wednesday</label>
+                    <label><input type="checkbox" name="work_days" value="Thursday" checked> Thursday</label>
+                    <label><input type="checkbox" name="work_days" value="Friday" checked> Friday</label>
+                    <label><input type="checkbox" name="work_days" value="Saturday"> Saturday</label>
+                    <label><input type="checkbox" name="work_days" value="Sunday"> Sunday</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="lunch-break-period">Lunch Break Period:</label>
+                <input type="number" id="lunch-break-period" name="lunch_break_period" value="5" min="1" max="15">
+                <small>Enter the period number for the lunch break (e.g., 5). Leave blank for no lunch break.</small>
+            </div>
             <button type="submit">Save Settings</button>
         </form>
     </div>

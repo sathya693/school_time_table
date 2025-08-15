@@ -28,7 +28,7 @@ function initSetupWizard() {
     console.log("Initializing Setup Wizard...");
     let allData = {};
     const ui = {
-        settingsForm: document.getElementById('form-add-setting'),
+        settingsForm: document.getElementById('form-settings'),
         teacherForm: document.getElementById('form-add-teacher'),
         subjectForm: document.getElementById('form-add-subject'),
         classroomForm: document.getElementById('form-add-classroom'),
@@ -37,6 +37,8 @@ function initSetupWizard() {
         courseForm: document.getElementById('form-add-course'),
         constraintForm: document.getElementById('form-add-constraint'),
         periodsInput: document.getElementById('periods-per-day'),
+        lunchBreakInput: document.getElementById('lunch-break-period'),
+        workDaysGroup: document.getElementById('work-days-group'),
         sectionGradeSelect: document.getElementById('section-grade-select'),
         courseTeacherSelect: document.getElementById('course-teacher-select'),
         courseSubjectSelect: document.getElementById('course-subject-select'),
@@ -76,7 +78,6 @@ function initSetupWizard() {
         renderList(ui.gradesList, allData.grades, g => g.name);
         renderList(ui.sectionsList, allData.sections, s => `${s.grade_name} - ${s.name}`);
 
-        // Correctly render Courses and Constraints lists
         const courseFormatter = c => {
             const teacher = (allData.teachers.find(t => t.id === c.teacher_id) || {}).name || 'N/A';
             const subject = (allData.subjects.find(s => s.id === c.subject_id) || {}).name || 'N/A';
@@ -94,9 +95,19 @@ function initSetupWizard() {
         };
         renderList(ui.constraintsList, allData.constraints, constraintFormatter);
 
-
-        if (ui.periodsInput && allData.config && allData.config.periods_per_day) {
-            ui.periodsInput.value = allData.config.periods_per_day;
+        if (allData.config) {
+            if (ui.periodsInput && allData.config.periods_per_day) {
+                ui.periodsInput.value = allData.config.periods_per_day;
+            }
+            if (ui.lunchBreakInput && allData.config.lunch_break_period) {
+                ui.lunchBreakInput.value = allData.config.lunch_break_period;
+            }
+            if (ui.workDaysGroup && allData.config.work_days) {
+                const workDays = allData.config.work_days.split(',');
+                ui.workDaysGroup.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = workDays.includes(checkbox.value);
+                });
+            }
         }
 
         const populateSelect = (selectElement, items = [], text, value, nameKey) => {
@@ -138,29 +149,61 @@ function initSetupWizard() {
                     return;
                 }
                 await postData(url, body);
-
-                if (form.id !== 'form-add-setting') {
-                    form.reset();
-                } else {
-                    button.textContent = 'Saved!';
-                    setTimeout(() => { button.textContent = originalButtonText; }, 2000);
-                }
-
+                form.reset();
                 await reloadData();
             } catch (error) {
                 console.error('Form submission error:', error.message);
                 alert(error.message);
-                button.textContent = originalButtonText;
             } finally {
+                button.textContent = originalButtonText;
                 button.disabled = false;
-                if (form.id !== 'form-add-setting') {
-                    button.textContent = originalButtonText;
-                }
             }
         });
     };
 
-    handleFormSubmit(ui.settingsForm, '/api/data/setting', f => ({ key: 'periods_per_day', value: f.elements['periods-per-day'].value }));
+    if (ui.settingsForm) {
+        ui.settingsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const button = ui.settingsForm.querySelector('button[type="submit"]');
+            const originalButtonText = button.textContent;
+            button.textContent = 'Saving...';
+            button.disabled = true;
+
+            try {
+                const periodsPerDay = ui.periodsInput.value;
+                const lunchBreak = ui.lunchBreakInput.value;
+                const workDaysCheckboxes = ui.workDaysGroup.querySelectorAll('input:checked');
+                const workDays = Array.from(workDaysCheckboxes).map(cb => cb.value).join(',');
+
+                if (!workDays) {
+                    alert("Please select at least one working day.");
+                    return;
+                }
+
+                const settingsToSave = [
+                    { key: 'periods_per_day', value: periodsPerDay },
+                    { key: 'work_days', value: workDays },
+                    { key: 'lunch_break_period', value: lunchBreak }
+                ];
+
+                await Promise.all(settingsToSave.map(setting =>
+                    postData('/api/data/setting', setting)
+                ));
+
+                button.textContent = 'Saved!';
+                setTimeout(() => { button.textContent = originalButtonText; }, 2000);
+
+                await reloadData();
+            } catch (error) {
+                console.error('Settings submission error:', error.message);
+                alert(error.message);
+                button.textContent = originalButtonText;
+            } finally {
+                button.disabled = false;
+            }
+        });
+    }
+
     handleFormSubmit(ui.teacherForm, '/api/data/teacher', f => ({ name: f.elements['teacher-name'].value.trim() }));
     handleFormSubmit(ui.subjectForm, '/api/data/subject', f => ({ name: f.elements['subject-name'].value.trim() }));
     handleFormSubmit(ui.classroomForm, '/api/data/classroom', f => ({ name: f.elements['classroom-name'].value.trim() }));
@@ -183,8 +226,8 @@ function initSetupWizard() {
         nextBtn.style.display = currentStep === steps.length - 1 ? 'none' : 'inline-block';
         finishBtn.style.display = currentStep === steps.length - 1 ? 'inline-block' : 'none';
     };
-    nextBtn.addEventListener('click', () => { if (currentStep < steps.length - 1) { currentStep++; updateWizard(); } });
-    prevBtn.addEventListener('click', () => { if (currentStep > 0) { currentStep--; updateWizard(); } });
+    nextBtn.addEventListener('click', () => { if (currentstep < steps.length - 1) { currentstep++; updatewizard(); } });
+    prevBtn.addEventListener('click', () => { if (currentstep > 0) { currentstep--; updatewizard(); } });
     finishBtn.addEventListener('click', () => { window.location.href = '/dashboard'; });
 
     reloadData().then(() => updateWizard());
@@ -206,12 +249,16 @@ async function initDashboard() {
         let itemLabel = "Item";
         if (viewType === 'section') { items = allData.sections || []; itemLabel = "Section"; }
         else if (viewType === 'teacher') { items = allData.teachers || []; itemLabel = "Teacher"; }
-        else if (viewType === 'classroom') { items = allData.classrooms || []; itemLabel = "Classroom"; }
         viewValueSelect.innerHTML = `<option value="">All</option>`;
         items.forEach(item => {
             const option = document.createElement('option');
             option.value = item.id;
-            option.textContent = item.name || `${item.grade_name} - ${item.name}`;
+            // FIX: Explicitly check for section to format the name correctly.
+            if (viewType === 'section') {
+                option.textContent = `${item.grade_name} - ${item.name}`;
+            } else {
+                option.textContent = item.name;
+            }
             viewValueSelect.appendChild(option);
         });
     };
@@ -231,6 +278,8 @@ async function initDashboard() {
             if (schedule && schedule.length > 0) {
                 console.log("Existing schedule found, rendering...");
                 timetableTitle.textContent = 'Full Timetable';
+                // FIX: Store the full, original schedule in the dataset only once.
+                timetableGrid.dataset.originalSchedule = JSON.stringify(schedule);
                 renderTimetable(schedule, allData);
             } else {
                 timetableTitle.textContent = 'No Schedule Found';
@@ -245,14 +294,17 @@ async function initDashboard() {
     const filterAndRender = () => {
         const viewType = viewTypeSelect.value;
         const viewId = viewValueSelect.value;
-        const currentSchedule = JSON.parse(timetableGrid.dataset.currentSchedule || '[]');
+        // FIX: Always filter from the original, full schedule.
+        const originalSchedule = JSON.parse(timetableGrid.dataset.originalSchedule || '[]');
         const selectedOption = viewValueSelect.options[viewValueSelect.selectedIndex];
         timetableTitle.textContent = viewId ? `Timetable for ${selectedOption.textContent}` : 'Full Timetable';
-        renderTimetable(currentSchedule, allData, viewType, viewId);
+        renderTimetable(originalSchedule, allData, viewType, viewId);
     };
 
     viewTypeSelect.addEventListener('change', () => {
         updateViewValueOptions();
+        // Reset the second dropdown and re-render the full schedule
+        viewValueSelect.value = "";
         filterAndRender();
     });
     viewValueSelect.addEventListener('change', filterAndRender);
@@ -271,6 +323,8 @@ async function initDashboard() {
             await postData('/api/timetable/commit', schedule);
             const finalSchedule = await (await fetch('/api/timetable')).json();
             timetableTitle.textContent = "Full Timetable";
+            // FIX: Update the original schedule dataset after generating a new one.
+            timetableGrid.dataset.originalSchedule = JSON.stringify(finalSchedule);
             renderTimetable(finalSchedule, allData);
         } catch (error) {
             console.error(error);
@@ -285,13 +339,15 @@ async function initDashboard() {
 function renderTimetable(schedule, allData, viewType = 'section', viewId = null) {
     console.log(`Rendering timetable with filter: ${viewType}, ${viewId}`);
     const timetableGrid = document.getElementById('timetable-grid');
-    timetableGrid.dataset.currentSchedule = JSON.stringify(schedule);
 
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const days = allData.config.work_days ? allData.config.work_days.split(',') : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     const periods = allData.config ? parseInt(allData.config.periods_per_day) || 8 : 8;
 
-    let gridHtml = '<div class="grid-header">Time</div>';
-    days.forEach(day => gridHtml += `<div class="grid-header">${day}</div>`);
+    // --- Transposed Grid Logic ---
+    let gridHtml = '<div class="grid-header">Day</div>';
+    for (let p = 1; p <= periods; p++) {
+        gridHtml += `<div class="grid-header">Period ${p}</div>`;
+    }
 
     const timeslotMap = {};
     if(allData.timeslots) {
@@ -301,14 +357,16 @@ function renderTimetable(schedule, allData, viewType = 'section', viewId = null)
         });
     }
 
-    for (let p = 1; p <= periods; p++) {
-        gridHtml += `<div class="grid-cell time-label">Period ${p}</div>`;
-        for (const day of days) {
+    for (const day of days) {
+        gridHtml += `<div class="grid-cell day-label">${day}</div>`; // Day label
+        for (let p = 1; p <= periods; p++) {
             const timeslotId = timeslotMap[day] ? timeslotMap[day][p] || '' : '';
             gridHtml += `<div class="grid-cell" data-timeslot-id="${timeslotId}"></div>`;
         }
     }
     timetableGrid.innerHTML = gridHtml;
+    // Adjust CSS grid columns dynamically
+    timetableGrid.style.gridTemplateColumns = `120px repeat(${periods}, 1fr)`;
 
     let filteredSchedule = schedule;
     if (viewId && viewId !== "") {
@@ -318,8 +376,6 @@ function renderTimetable(schedule, allData, viewType = 'section', viewId = null)
             filteredSchedule = schedule.filter(l => (courseMap.get(l.course_id) || {}).teacher_id === numericViewId);
         } else if (viewType === 'section') {
             filteredSchedule = schedule.filter(l => (courseMap.get(l.course_id) || {}).section_id === numericViewId);
-        } else if (viewType === 'classroom') {
-            filteredSchedule = schedule.filter(l => l.classroom_id === numericViewId);
         }
     }
 

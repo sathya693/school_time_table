@@ -51,7 +51,8 @@ def test_timetable_generator_creates_valid_timetable(mock_data):
         mock_data["courses"],
         mock_data["timeslots"],
         mock_data["classrooms"],
-        mock_data["constraints"]
+        mock_data["constraints"],
+        {} # Empty config for this test
     )
     timetable = generator.generate()
 
@@ -72,7 +73,8 @@ def test_rescheduler_finds_valid_alternatives(mock_data):
         conflicting_timetable,
         mock_data["courses"],
         mock_data["timeslots"],
-        mock_data["constraints"]
+        mock_data["constraints"],
+        {} # Empty config
     )
     solutions = rescheduler.find_solutions_for_conflict(conflicting_lesson_course_id)
 
