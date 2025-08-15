@@ -21,19 +21,33 @@ def setup():
 
 @main.route('/api/data', methods=['GET'])
 def get_all_data():
-    """Endpoint to fetch all initial data for the setup wizard."""
-    teachers = [t.name for t in Teacher.query.all()]
-    subjects = [s.name for s in Subject.query.all()]
-    classrooms = [c.name for c in Classroom.query.all()]
-    grades = {g.id: g.name for g in Grade.query.all()}
-    sections = {s.id: {'name': s.name, 'grade': grades.get(s.grade_id)} for s in Section.query.all()}
+    """Endpoint to fetch all initial data for the setup wizard and dashboard rendering."""
+    def serialize(model_instance):
+        """Simple serializer for our models."""
+        if not model_instance: return None
+        return {c.name: getattr(model_instance, c.name) for c in model_instance.__table__.columns}
+
+    teachers = [serialize(t) for t in Teacher.query.all()]
+    subjects = [serialize(s) for s in Subject.query.all()]
+    classrooms = [serialize(c) for c in Classroom.query.all()]
+    grades = [serialize(g) for g in Grade.query.all()]
+    sections = [serialize(s) for s in Section.query.all()]
+    courses = [serialize(c) for c in Course.query.all()]
+    timeslots = [serialize(t) for t in Timeslot.query.all()]
+
+    # Add grade name to sections for easier use in frontend
+    grade_map = {g['id']: g['name'] for g in grades}
+    for section in sections:
+        section['grade_name'] = grade_map.get(section['grade_id'])
 
     response = {
         "teachers": teachers,
         "subjects": subjects,
         "classrooms": classrooms,
-        "grades": list(grades.values()),
-        "sections": list(sections.values()),
+        "grades": grades,
+        "sections": sections,
+        "courses": courses,
+        "timeslots": timeslots,
     }
     return jsonify(response), 200
 
