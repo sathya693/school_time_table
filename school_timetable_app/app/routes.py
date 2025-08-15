@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from . import db
-from .models import Teacher, Subject, Classroom, Grade, Section, Course, Constraint, Timeslot, Configuration
+from .models import Teacher, Subject, Classroom, Grade, Section, Course, Constraint, Timeslot, Configuration, Lesson
 from sqlalchemy.exc import IntegrityError
 import logging
 

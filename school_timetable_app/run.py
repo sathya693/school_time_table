@@ -1,48 +1,63 @@
+import sys
+import subprocess
 import os
+import pkg_resources
+
+def check_and_install_dependencies():
+    """
+    Checks if the required packages are installed and installs them if not.
+    """
+    print("--- Checking for required packages... ---")
+    try:
+        requirements_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
+        with open(requirements_path, 'r') as f:
+            # We need to parse the requirement names from lines like 'Flask>=2.0'
+            required = [line.strip().split('==')[0].split('>=')[0].split('<=')[0] for line in f if line.strip() and not line.startswith('#')]
+
+        pkg_resources.require(required)
+        print("All packages are already installed.")
+    except (pkg_resources.DistributionNotFound, pkg_resources.VersionConflict) as e:
+        print(f"Required package not found or version mismatch: {e}. Installing...")
+        try:
+            # Use the same Python executable that is running this script to run pip
+            python_executable = sys.executable
+            subprocess.check_call([python_executable, '-m', 'pip', 'install', '-r', requirements_path])
+            print("--- Packages installed successfully. ---")
+        except subprocess.CalledProcessError as err:
+            print(f"ERROR: Failed to install packages. Please run 'pip install -r requirements.txt' manually. Error: {err}")
+            sys.exit(1)
+
+# Run dependency check first
+check_and_install_dependencies()
+
+# Now, import the application modules
 from app import create_app, db
-from app.models import * # Import all models
+from app.models import *
 from flask_migrate import Migrate, upgrade
 from seed import seed_data
 
 def setup_database(app):
     """
-    Checks if the database needs to be initialized. If the db file doesn't exist,
-    it runs the migrations and seeds the database with initial data.
+    Initializes and seeds the database if it doesn't exist.
     """
     with app.app_context():
-        # The path to the database file is taken from the app's configuration
         db_path_str = app.config.get('SQLALCHEMY_DATABASE_URI').replace('sqlite:///', '')
         db_path = os.path.join(os.path.dirname(app.root_path), db_path_str)
-
         if not os.path.exists(db_path):
             print("--- First time setup: Initializing database. ---")
-            # Create the database tables
             upgrade()
-            # Populate with seed data
             seed_data()
             print("--- Database setup complete. ---")
         else:
             print("Database already exists. Skipping setup.")
 
-
-# --- Application Factory ---
-config_name = os.getenv('FLASK_CONFIG') or 'default'
-app = create_app(config_name)
-migrate = Migrate(app, db)
-
-# --- Shell Context for 'flask shell' ---
-@app.shell_context_processor
-def make_shell_context():
-    return dict(db=db, Teacher=Teacher, Subject=Subject, Classroom=Classroom,
-                Grade=Grade, Section=Section, Timeslot=Timeslot,
-                Constraint=Constraint, Course=Course, Lesson=Lesson, Configuration=Configuration)
-
-
-# --- Main Execution ---
+# --- Application Factory & Main Execution ---
 if __name__ == '__main__':
-    # Ensure the database is set up before running the app
+    config_name = os.getenv('FLASK_CONFIG') or 'default'
+    app = create_app(config_name)
+    migrate = Migrate(app, db)
+
     setup_database(app)
 
-    # The app.run() command is suitable for development.
-    # For production, a proper WSGI server like Gunicorn or uWSGI should be used.
-    app.run(debug=True, use_reloader=False) # Disabling reloader to prevent setup from running twice
+    print("--- Starting Flask Server ---")
+    app.run(debug=True, use_reloader=False)
