@@ -48,7 +48,13 @@ def seed_data():
 
         # --- Create Master Data ---
         print("Creating master data (teachers, subjects)...")
-        teachers = [Teacher(name=n) for n in ['Mr. Smith', 'Ms. Jones', 'Mr. Davis', 'Ms. Rodriguez', 'Mr. Chen', 'Ms. Williams', 'Mr. Brown', 'Ms. Patel', 'Mr. Wilson', 'Ms. Taylor', 'Mr. Lee', 'Ms. Garcia', 'Mr. Martinez', 'Ms. Nguyen', 'Mr. Kim']]
+        teachers = [Teacher(name=n) for n in [
+            'Mr. Smith', 'Ms. Jones', 'Mr. Davis', 'Ms. Rodriguez', 'Mr. Chen',
+            'Ms. Williams', 'Mr. Brown', 'Ms. Patel', 'Mr. Wilson', 'Ms. Taylor',
+            'Mr. Lee', 'Ms. Garcia', 'Mr. Martinez', 'Ms. Nguyen', 'Mr. Kim',
+            'Ms. Walker', 'Mr. Hall', 'Ms. Allen', 'Mr. Young', 'Ms. Hernandez',
+            'Mr. King', 'Ms. Wright', 'Mr. Lopez', 'Ms. Hill', 'Mr. Scott'
+        ]]
         subjects = [Subject(name=n) for n in ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Art']]
         db.session.add_all(teachers)
         db.session.add_all(subjects)
