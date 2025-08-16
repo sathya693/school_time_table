@@ -130,11 +130,23 @@ class TimetableGenerator:
                 # 1. Place the lesson
                 final_schedule.append({**lesson, 'timeslot_id': slot['id']})
 
-                # 2. Recurse
-                if solve(lesson_index + 1):
+                # 2. Forward Checking: Before recursing, check if the next lesson is still possible.
+                is_forward_possible = True
+                if lesson_index + 1 < len(lessons_to_schedule):
+                    next_lesson = lessons_to_schedule[lesson_index + 1]
+                    has_at_least_one_slot = False
+                    for timeslot in self.timeslots:
+                        if not self._is_hard_constraint_violated(final_schedule, next_lesson, timeslot['id']):
+                            has_at_least_one_slot = True
+                            break
+                    if not has_at_least_one_slot:
+                        is_forward_possible = False
+
+                # 3. Recurse only if the forward check passed
+                if is_forward_possible and solve(lesson_index + 1):
                     return True # Success, propagate it up
 
-                # 3. Backtrack: If the recursive call failed, undo the placement
+                # 4. Backtrack: If forward check failed or recursion failed, undo placement
                 final_schedule.pop()
 
             # If no possible slot led to a solution, return False
