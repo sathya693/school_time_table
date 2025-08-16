@@ -72,7 +72,7 @@ class TimetableGenerator:
 
     def _construct_initial_solution(self):
         """
-        Constructs an initial timetable using a greedy first-fit algorithm.
+        Constructs an initial timetable using a recursive backtracking algorithm.
         """
         schedule = []
         lessons_to_schedule = []
@@ -84,49 +84,53 @@ class TimetableGenerator:
                     'section_id': course['section_id']
                 })
 
-        random.shuffle(lessons_to_schedule) # Introduce randomness
+        random.shuffle(lessons_to_schedule)
 
-        for lesson in lessons_to_schedule:
+        # The main schedule object to be populated by the recursive solver
+        final_schedule = []
+
+        def solve(lesson_index):
+            # Base case: If all lessons are scheduled, we found a solution.
+            if lesson_index >= len(lessons_to_schedule):
+                return True
+
+            lesson = lessons_to_schedule[lesson_index]
+
+            # Find and score all possible slots for the current lesson
             possible_slots = []
-            # Find all valid slots for the current lesson
             for timeslot in self.timeslots:
-                if not self._is_hard_constraint_violated(schedule, lesson, timeslot['id']):
-                    possible_slots.append(timeslot)
+                if not self._is_hard_constraint_violated(final_schedule, lesson, timeslot['id']):
+                    score = 0
+                    if self.prefs_map.get((lesson['teacher_id'], timeslot['id'])) == 'desirable':
+                        score = 5
+                    possible_slots.append({'slot': timeslot, 'score': score})
 
-            if not possible_slots:
-                print(f"Failed to place a lesson for course {lesson['course_id']}. Not enough resources or too many constraints.")
-                return None  # Failed to create a valid schedule
+            # Sort slots to try the best (most desirable) ones first
+            possible_slots.sort(key=lambda x: x['score'], reverse=True)
 
-            # Score the possible slots to find the best one
-            best_slot = None
-            max_score = -1
+            # Try to place the lesson in one of the possible slots
+            for possibility in possible_slots:
+                slot = possibility['slot']
 
-            # Shuffle the possible slots to avoid bias for neutral slots
-            random.shuffle(possible_slots)
+                # 1. Place the lesson
+                final_schedule.append({**lesson, 'timeslot_id': slot['id']})
 
-            for slot in possible_slots:
-                score = 0 # Neutral score
-                key = (lesson['teacher_id'], slot['id'])
-                if self.prefs_map.get(key) == 'desirable':
-                    score = 5 # Desirable score
+                # 2. Recurse
+                if solve(lesson_index + 1):
+                    return True # Success, propagate it up
 
-                if score > max_score:
-                    max_score = score
-                    best_slot = slot
-                # If the best possible score is already found, no need to check further
-                if max_score == 5:
-                    break
+                # 3. Backtrack: If the recursive call failed, undo the placement
+                final_schedule.pop()
 
-            # If no slot had a positive score, best_slot will be the first random valid one
-            if best_slot is None:
-                best_slot = possible_slots[0]
+            # If no possible slot led to a solution, return False
+            return False
 
-            schedule.append({
-                **lesson,
-                'timeslot_id': best_slot['id'],
-            })
-
-        return schedule
+        # Kick off the recursive solver
+        if solve(0):
+            return final_schedule
+        else:
+            print("Failed to construct an initial solution. The problem is likely unsolvable.")
+            return None
 
     def _optimize_solution(self, schedule):
         """
