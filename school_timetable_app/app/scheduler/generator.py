@@ -62,12 +62,20 @@ class TimetableGenerator:
             return True # Teacher is unavailable or has marked the slot as undesirable
 
         # Check for clashes
+        day_of_week = timeslot.get('day')
         for scheduled_lesson in schedule:
             if scheduled_lesson['timeslot_id'] == timeslot_id:
                 if scheduled_lesson['teacher_id'] == lesson['teacher_id']:
                     return True # Teacher clash
                 if scheduled_lesson['section_id'] == lesson['section_id']:
                     return True # Section clash
+
+            # New Rule: Check if the same subject is already taught to the same section on the same day
+            scheduled_timeslot = self.timeslot_map.get(scheduled_lesson['timeslot_id'])
+            if (scheduled_timeslot and scheduled_timeslot.get('day') == day_of_week and
+                scheduled_lesson['course_id'] == lesson['course_id']):
+                return True # Subject already taught to this section on this day
+
         return False
 
     def _construct_initial_solution(self):

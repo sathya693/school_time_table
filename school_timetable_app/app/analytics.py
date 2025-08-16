@@ -66,10 +66,11 @@ def analyze_teacher_sufficiency(subject_analysis, periods_per_teacher=40):
 
 def get_section_fill_analysis():
     """
-    Calculates how many assigned periods each section has versus the total
-    available periods in a week.
+    Calculates a detailed breakdown of subject assignments for each section,
+    comparing required periods (from section-subject mapping) to assigned
+    periods (from created courses).
     """
-    from .models import Section, Configuration
+    from .models import Section, Configuration, Course
 
     config_q = Configuration.query.all()
     config = {c.key: c.value for c in config_q}
@@ -81,18 +82,39 @@ def get_section_fill_analysis():
     sections = Section.query.all()
     analysis = []
     for section in sections:
-        assigned_periods = sum(course.periods_per_week for course in section.courses)
+        # Get all courses that have been created and assigned to this section
+        assigned_courses = Course.query.filter_by(section_id=section.id).all()
+        assigned_periods_map = defaultdict(int)
+        for c in assigned_courses:
+            assigned_periods_map[c.subject_id] += c.periods_per_week
+
+        subjects_detail = []
+        # Iterate through subjects that SHOULD be taught to this section
+        for required_subject in section.subjects:
+            required_periods = 5 # Defaulting to 5 as per seed data logic
+
+            # Check if a course was actually created and assigned for this subject
+            assigned_periods = assigned_periods_map.get(required_subject.id, 0)
+
+            subjects_detail.append({
+                "subject_name": required_subject.name,
+                "required": required_periods,
+                "assigned": assigned_periods
+            })
+
+        total_assigned = sum(item['assigned'] for item in subjects_detail)
         status = "Fully Scheduled"
-        if assigned_periods < total_available:
+        if total_assigned < total_available:
             status = "Under Scheduled"
-        elif assigned_periods > total_available:
+        elif total_assigned > total_available:
             status = "Over Scheduled"
 
         analysis.append({
             "section_name": f"{section.grade.name} - {section.name}",
-            "assigned_periods": assigned_periods,
+            "assigned_periods": total_assigned,
             "available_periods": total_available,
-            "status": status
+            "status": status,
+            "subjects": sorted(subjects_detail, key=lambda x: x['subject_name'])
         })
     return sorted(analysis, key=lambda x: x['section_name'])
 

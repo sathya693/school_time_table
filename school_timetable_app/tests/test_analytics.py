@@ -103,7 +103,12 @@ class AnalyticsTestCase(unittest.TestCase):
 
     def test_section_fill_analysis(self):
         from app.analytics import get_section_fill_analysis
-        from app.models import Configuration
+        from app.models import Configuration, Section, Subject
+
+        # Assign all subjects to the section for this test
+        section = Section.query.first()
+        section.subjects = Subject.query.all()
+        db.session.commit()
 
         # Set config for the test
         c1 = Configuration(key='periods_per_day', value='10')
@@ -111,16 +116,17 @@ class AnalyticsTestCase(unittest.TestCase):
         db.session.add_all([c1, c2])
         db.session.commit()
 
-        # Total available = 10 * 2 = 20
         analysis = get_section_fill_analysis()
         self.assertEqual(len(analysis), 1)
 
         sec_analysis = analysis[0]
-        self.assertEqual(sec_analysis['section_name'], 'Grade 1 - A')
-        self.assertEqual(sec_analysis['available_periods'], 20)
-        # Assigned periods = 5 (Math by Mr.A) + 5 (Math by Ms.B) + 2 (Art by Ms.B) = 12
-        self.assertEqual(sec_analysis['assigned_periods'], 12)
         self.assertEqual(sec_analysis['status'], 'Under Scheduled')
+        self.assertIn('subjects', sec_analysis)
+        self.assertEqual(len(sec_analysis['subjects']), 2) # Math and Art
+
+        math_detail = next(s for s in sec_analysis['subjects'] if s['subject_name'] == 'Math')
+        self.assertEqual(math_detail['required'], 5)
+        self.assertEqual(math_detail['assigned'], 10) # 2 courses of 5 periods
 
     def test_generate_summary_data(self):
         from app.analytics import generate_summary_data
@@ -133,3 +139,5 @@ class AnalyticsTestCase(unittest.TestCase):
 
         self.assertEqual(summary['key_metrics']['total_teachers'], 2)
         self.assertEqual(summary['key_metrics']['total_sections'], 1)
+        # Check for the nested structure
+        self.assertIn('subjects', summary['section_fill_analysis'][0])

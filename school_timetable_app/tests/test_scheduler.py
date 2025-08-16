@@ -14,7 +14,8 @@ def mock_data():
         {'id': i, 'day': day, 'period': p}
         for i, (day, p) in enumerate([
             ('Mon', 1), ('Mon', 2), ('Mon', 3), ('Mon', 4),
-            ('Tue', 1), ('Tue', 2), ('Tue', 3), ('Tue', 4)
+            ('Tue', 1), ('Tue', 2), ('Tue', 3), ('Tue', 4),
+            ('Wed', 1), ('Wed', 2), ('Wed', 3), ('Wed', 4) # Add more slots
         ])
     ]
     mock_preferences = [{'teacher_id': 1, 'timeslot_id': 3, 'preference_type': 'unavailable'}]

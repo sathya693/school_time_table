@@ -55,7 +55,10 @@ def seed_data():
             'Ms. Walker', 'Mr. Hall', 'Ms. Allen', 'Mr. Young', 'Ms. Hernandez',
             'Mr. King', 'Ms. Wright', 'Mr. Lopez', 'Ms. Hill', 'Mr. Scott'
         ]]
-        subjects = [Subject(name=n) for n in ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Art']]
+        subjects = [Subject(name=n) for n in [
+            'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History',
+            'Geography', 'Art', 'Language', 'Computer Science', 'Physical Education', 'Social Science'
+        ]]
         db.session.add_all(teachers)
         db.session.add_all(subjects)
         db.session.commit()
@@ -84,17 +87,16 @@ def seed_data():
         for section in all_sections:
             random.shuffle(teachers)  # Shuffle teachers for each new section
 
-            # Assign a random subset of 6 subjects to each section for realism
+            # Assign a random subset of 8 subjects to each section for a full 40-period week
             random.shuffle(all_subjects)
-            subjects_for_section = all_subjects[:6]
+            subjects_for_section = all_subjects[:8]
 
             teacher_cycle = 0
             for subject in subjects_for_section:
                 teacher = teachers[teacher_cycle % len(teachers)]
                 teacher_cycle += 1
 
-                # Assign 5 periods per subject. With 6 subjects, this is a 30-period week.
-                # This leaves some empty slots, making the problem solvable but still challenging.
+                # Assign 5 periods per subject. With 8 subjects, this is a 40-period week.
                 periods_per_week = 5
 
                 courses_to_create.append(Course(

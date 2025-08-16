@@ -293,14 +293,34 @@ function initSetupWizard() {
         analysis.forEach(item => {
             let statusClass = '';
             if (item.status === 'Under Scheduled') statusClass = 'status-shortage';
-            else if (item.status === 'Over Scheduled') statusClass = 'status-overload'; // A new class might be needed
-            const row = `<tr>
-                <td>${item.section_name}</td>
+            else if (item.status === 'Over Scheduled') statusClass = 'status-overload';
+
+            // Create the main row for the section
+            const mainRow = document.createElement('tr');
+            mainRow.innerHTML = `
+                <td><strong>${item.section_name}</strong></td>
                 <td>${item.assigned_periods}</td>
                 <td>${item.available_periods}</td>
                 <td class="${statusClass}">${item.status}</td>
-            </tr>`;
-            tbody.innerHTML += row;
+            `;
+            tbody.appendChild(mainRow);
+
+            // Create a sub-row for the detailed subject breakdown
+            const detailRow = document.createElement('tr');
+            const detailCell = document.createElement('td');
+            detailCell.colSpan = 4; // Span across all columns
+
+            let detailHtml = '<div class="subject-detail-grid">';
+            item.subjects.forEach(subj => {
+                const isMet = subj.assigned >= subj.required;
+                const detailClass = isMet ? 'subject-met' : 'subject-unmet';
+                detailHtml += `<span class="${detailClass}">${subj.subject_name} (${subj.assigned}/${subj.required})</span>`;
+            });
+            detailHtml += '</div>';
+
+            detailCell.innerHTML = detailHtml;
+            detailRow.appendChild(detailCell);
+            tbody.appendChild(detailRow);
         });
     };
 
