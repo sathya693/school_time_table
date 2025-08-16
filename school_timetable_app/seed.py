@@ -75,22 +75,26 @@ def seed_data():
 
         # --- Create Courses (Link everything together) ---
         print("Creating courses...")
-        # This is a simplified mapping. A real scenario would be more complex.
         courses_to_create = []
         all_sections = Section.query.all()
+        all_subjects = Subject.query.all()
 
-        # Shuffle teachers before each section to distribute workload more evenly
         import random
 
         for section in all_sections:
-            random.shuffle(teachers) # Shuffle for each section
+            random.shuffle(teachers)  # Shuffle teachers for each new section
+
+            # Assign a random subset of 6 subjects to each section for realism
+            random.shuffle(all_subjects)
+            subjects_for_section = all_subjects[:6]
+
             teacher_cycle = 0
-            for subject in Subject.query.all():
-                # Simple round-robin assignment for demonstration
+            for subject in subjects_for_section:
                 teacher = teachers[teacher_cycle % len(teachers)]
                 teacher_cycle += 1
 
-                # Assign 5 periods per subject to make a full 40-period week (8 subjects * 5 periods)
+                # Assign 5 periods per subject. With 6 subjects, this is a 30-period week.
+                # This leaves some empty slots, making the problem solvable but still challenging.
                 periods_per_week = 5
 
                 courses_to_create.append(Course(

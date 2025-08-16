@@ -84,7 +84,14 @@ class TimetableGenerator:
                     'section_id': course['section_id']
                 })
 
-        random.shuffle(lessons_to_schedule)
+        # Heuristic: Sort lessons to schedule the ones for the busiest teachers first.
+        # This is a "most constrained variable" heuristic that prunes the search tree.
+        teacher_ids = {c['teacher_id'] for c in self.courses}
+        teacher_workload = {tid: 0 for tid in teacher_ids}
+        for c in self.courses:
+            teacher_workload[c['teacher_id']] += c['periods_per_week']
+
+        lessons_to_schedule.sort(key=lambda l: teacher_workload.get(l['teacher_id'], 0), reverse=True)
 
         # The main schedule object to be populated by the recursive solver
         final_schedule = []
