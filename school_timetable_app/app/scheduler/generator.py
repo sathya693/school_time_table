@@ -2,19 +2,11 @@ import random
 
 class TimetableGenerator:
     """
-    Generates a school timetable using a hybrid two-phase algorithm.
-    1. Constructive Heuristic: Builds a valid initial solution.
-    2. Metaheuristic Optimizer: Improves the solution using Tabu Search.
+    Generates a school timetable using a recursive backtracking algorithm.
     """
     def __init__(self, courses, timeslots, config=None, preferences=None):
         """
         Initializes the generator with necessary data.
-
-        Args:
-            courses (list of dicts): Courses to be scheduled.
-            timeslots (list of dicts): Available timeslots.
-            config (dict): Application configuration, e.g., lunch break period.
-            preferences (list of dicts): Teacher preferences for timeslots.
         """
         self.courses = courses
         self.timeslots = timeslots
@@ -27,7 +19,6 @@ class TimetableGenerator:
             key = (p['teacher_id'], p['timeslot_id'])
             self.prefs_map[key] = p['preference_type']
 
-        # Pre-process timeslots for faster lookup
         self.timeslot_map = {t['id']: t for t in self.timeslots}
 
     def generate(self):
@@ -35,54 +26,37 @@ class TimetableGenerator:
         Main method to generate the timetable.
         """
         print("Starting timetable generation...")
-        # Phase 1: Construct an initial, valid solution
-        initial_solution = self._construct_initial_solution()
-        if not initial_solution:
-            print("Failed to construct an initial solution.")
-            return None
+        return self._construct_initial_solution()
 
-        # Phase 2: Optimize the solution using Tabu Search
-        # For this example, we will return the initial solution.
-        # The optimization logic is complex and would be added here.
-        print("Initial solution constructed. Optimization phase skipped for now.")
-        # optimized_solution = self._optimize_solution(initial_solution)
-
-        return initial_solution
-
-    def _is_hard_constraint_violated(self, schedule, lesson, timeslot_id):
+    def _is_hard_constraint_violated(self, schedule, lesson, timeslot, day_subject_section_lookup):
         """Checks for hard constraint violations for a potential lesson placement."""
-        timeslot = self.timeslot_map.get(timeslot_id)
         if not timeslot:
-            return True # Should not happen
+            return True
+
+        # O(1) check for the "no subject clumping" rule
+        day_of_week = timeslot.get('day')
+        lookup_key = (day_of_week, lesson['section_id'], lesson['course_id'])
+        if lookup_key in day_subject_section_lookup:
+            return True
 
         # Check teacher availability constraint
-        key = (lesson['teacher_id'], timeslot_id)
-        preference = self.prefs_map.get(key)
-        if preference in ['unavailable', 'undesirable']:
-            return True # Teacher is unavailable or has marked the slot as undesirable
+        key = (lesson['teacher_id'], timeslot['id'])
+        if self.prefs_map.get(key) in ['unavailable', 'undesirable']:
+            return True
 
-        # Check for clashes
-        day_of_week = timeslot.get('day')
+        # Check for teacher/section clashes for the current timeslot
         for scheduled_lesson in schedule:
-            if scheduled_lesson['timeslot_id'] == timeslot_id:
+            if scheduled_lesson['timeslot_id'] == timeslot['id']:
                 if scheduled_lesson['teacher_id'] == lesson['teacher_id']:
-                    return True # Teacher clash
+                    return True  # Teacher clash
                 if scheduled_lesson['section_id'] == lesson['section_id']:
-                    return True # Section clash
-
-            # New Rule: Check if the same subject is already taught to the same section on the same day
-            scheduled_timeslot = self.timeslot_map.get(scheduled_lesson['timeslot_id'])
-            if (scheduled_timeslot and scheduled_timeslot.get('day') == day_of_week and
-                scheduled_lesson['course_id'] == lesson['course_id']):
-                return True # Subject already taught to this section on this day
-
+                    return True  # Section clash
         return False
 
     def _construct_initial_solution(self):
         """
-        Constructs an initial timetable using a recursive backtracking algorithm.
+        Sets up and kicks off the recursive backtracking solver.
         """
-        schedule = []
         lessons_to_schedule = []
         for course in self.courses:
             for _ in range(course['periods_per_week']):
@@ -93,120 +67,47 @@ class TimetableGenerator:
                 })
 
         # Heuristic: Sort lessons to schedule the ones for the busiest teachers first.
-        # This is a "most constrained variable" heuristic that prunes the search tree.
         teacher_ids = {c['teacher_id'] for c in self.courses}
         teacher_workload = {tid: 0 for tid in teacher_ids}
         for c in self.courses:
             teacher_workload[c['teacher_id']] += c['periods_per_week']
-
         lessons_to_schedule.sort(key=lambda l: teacher_workload.get(l['teacher_id'], 0), reverse=True)
 
-        # The main schedule object to be populated by the recursive solver
         final_schedule = []
+        day_subject_section_lookup = set()
 
         def solve(lesson_index):
-            # Base case: If all lessons are scheduled, we found a solution.
             if lesson_index >= len(lessons_to_schedule):
                 return True
 
             lesson = lessons_to_schedule[lesson_index]
 
-            # Find and score all possible slots for the current lesson
             possible_slots = []
             for timeslot in self.timeslots:
-                if not self._is_hard_constraint_violated(final_schedule, lesson, timeslot['id']):
-                    score = 0
-                    if self.prefs_map.get((lesson['teacher_id'], timeslot['id'])) == 'desirable':
-                        score = 5
+                if not self._is_hard_constraint_violated(final_schedule, lesson, timeslot, day_subject_section_lookup):
+                    score = 5 if self.prefs_map.get((lesson['teacher_id'], timeslot['id'])) == 'desirable' else 0
                     possible_slots.append({'slot': timeslot, 'score': score})
 
-            # Sort slots to try the best (most desirable) ones first
             possible_slots.sort(key=lambda x: x['score'], reverse=True)
 
-            # Try to place the lesson in one of the possible slots
             for possibility in possible_slots:
                 slot = possibility['slot']
 
-                # 1. Place the lesson
                 final_schedule.append({**lesson, 'timeslot_id': slot['id']})
+                lookup_key = (slot['day'], lesson['section_id'], lesson['course_id'])
+                day_subject_section_lookup.add(lookup_key)
 
-                # 2. Forward Checking: Before recursing, check if the next lesson is still possible.
-                is_forward_possible = True
-                if lesson_index + 1 < len(lessons_to_schedule):
-                    next_lesson = lessons_to_schedule[lesson_index + 1]
-                    has_at_least_one_slot = False
-                    for timeslot in self.timeslots:
-                        if not self._is_hard_constraint_violated(final_schedule, next_lesson, timeslot['id']):
-                            has_at_least_one_slot = True
-                            break
-                    if not has_at_least_one_slot:
-                        is_forward_possible = False
+                if solve(lesson_index + 1):
+                    return True
 
-                # 3. Recurse only if the forward check passed
-                if is_forward_possible and solve(lesson_index + 1):
-                    return True # Success, propagate it up
-
-                # 4. Backtrack: If forward check failed or recursion failed, undo placement
+                day_subject_section_lookup.remove(lookup_key)
                 final_schedule.pop()
 
-            # If no possible slot led to a solution, return False
             return False
 
-        # Kick off the recursive solver
         if solve(0):
+            print("Successfully generated a valid timetable.")
             return final_schedule
         else:
             print("Failed to construct an initial solution. The problem is likely unsolvable.")
             return None
-
-    def _optimize_solution(self, schedule):
-        """
-        Optimizes the schedule using a metaheuristic like Tabu Search.
-        (This is a placeholder for the complex optimization logic).
-        """
-        # 1. Initialize: current_best = schedule, tabu_list = []
-        # 2. Loop for N iterations:
-        # 3.   Generate neighbors (e.g., by swapping two lessons)
-        # 4.   Find the best neighbor not in tabu_list
-        # 5.   Update current_best
-        # 6.   Add the move to tabu_list
-        # 7. Return current_best
-        print("Optimization logic would run here.")
-        return schedule
-
-    def _calculate_fitness(self, schedule):
-        """
-        Calculates the fitness of a schedule. Lower score is better.
-        Penalizes soft constraint violations.
-        """
-        penalty = 0
-
-        # --- Soft constraint: Teacher gaps ---
-        teacher_schedules = {}
-        for lesson in schedule:
-            tid = lesson['teacher_id']
-            if tid not in teacher_schedules:
-                teacher_schedules[tid] = []
-            teacher_schedules[tid].append(lesson['timeslot_id'])
-
-        for tid, slots in teacher_schedules.items():
-            sorted_slots = sorted(slots)
-            for i in range(len(sorted_slots) - 1):
-                gap = sorted_slots[i+1] - sorted_slots[i]
-                if gap > 1:
-                    penalty += (gap - 1) # Add penalty for each idle period
-
-        # --- Soft constraint: Teacher preferences ---
-        for lesson in schedule:
-            teacher_id = lesson['teacher_id']
-            timeslot_id = lesson['timeslot_id']
-            key = (teacher_id, timeslot_id)
-
-            if key in self.prefs_map:
-                pref_type = self.prefs_map[key]
-                if pref_type == 'undesirable':
-                    penalty += 10  # High penalty for undesirable slots
-                elif pref_type == 'desirable':
-                    penalty -= 5   # Reward for desirable slots
-
-        return penalty
