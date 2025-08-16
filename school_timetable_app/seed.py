@@ -91,6 +91,14 @@ def seed_data():
         db.session.add_all(courses_to_create)
         db.session.commit()
 
+        # --- Assign all Subjects to all Sections by default ---
+        print("Assigning subjects to sections...")
+        all_sections = Section.query.all()
+        all_subjects = Subject.query.all()
+        for section in all_sections:
+            section.subjects = all_subjects
+        db.session.commit()
+
         # --- Create Preferences ---
         print("Creating preferences...")
         # Make Mr. Smith unavailable on Monday morning

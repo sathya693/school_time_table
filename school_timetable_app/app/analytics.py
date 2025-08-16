@@ -1,15 +1,17 @@
 from .models import Teacher, Subject, Course
 from collections import defaultdict
 
-def get_teacher_workload():
+def get_teacher_workload(total_available_periods):
     """Calculates the number of periods assigned to each teacher."""
     teachers = Teacher.query.all()
     workload = []
     for teacher in teachers:
-        total_periods = sum(course.periods_per_week for course in teacher.courses)
+        assigned_periods = sum(course.periods_per_week for course in teacher.courses)
+        free_periods = total_available_periods - assigned_periods
         workload.append({
             "teacher_name": teacher.name,
-            "assigned_periods": total_periods
+            "assigned_periods": assigned_periods,
+            "free_periods": free_periods
         })
     return sorted(workload, key=lambda x: x['assigned_periods'], reverse=True)
 
@@ -97,13 +99,28 @@ def get_section_fill_analysis():
 
 def generate_summary_data():
     """Generates all data needed for the summary/analytics page."""
-    teacher_workload = get_teacher_workload()
+    from .models import Configuration
+
+    # Get base config to calculate total available periods
+    config_q = Configuration.query.all()
+    config = {c.key: c.value for c in config_q}
+    periods_per_day = int(config.get('periods_per_day', 8))
+    work_days = config.get('work_days', 'Monday,Tuesday,Wednesday,Thursday,Friday').split(',')
+    total_available_periods = periods_per_day * len(work_days)
+
+    # Generate all analytics components
+    teacher_workload = get_teacher_workload(total_available_periods)
     subject_demand_supply = get_subject_demand_and_supply()
     teacher_sufficiency = analyze_teacher_sufficiency(subject_demand_supply)
     section_fill = get_section_fill_analysis()
+    total_teachers = Teacher.query.count()
 
     return {
         "teacher_workload": teacher_workload,
         "subject_analysis": teacher_sufficiency,
-        "section_fill_analysis": section_fill
+        "section_fill_analysis": section_fill,
+        "key_metrics": {
+            "total_teachers": total_teachers,
+            "total_sections": len(section_fill)
+        }
     }

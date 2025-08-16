@@ -252,7 +252,7 @@ function initSetupWizard() {
         if (!tbody) return;
         tbody.innerHTML = ''; // Clear existing rows
         workload.forEach(item => {
-            const row = `<tr><td>${item.teacher_name}</td><td>${item.assigned_periods}</td></tr>`;
+            const row = `<tr><td>${item.teacher_name}</td><td>${item.assigned_periods}</td><td>${item.free_periods}</td></tr>`;
             tbody.innerHTML += row;
         });
     };
@@ -303,12 +303,24 @@ function initSetupWizard() {
             renderWorkloadTable(summaryData.teacher_workload);
             renderAnalysisTable(summaryData.subject_analysis);
             renderSectionFillTable(summaryData.section_fill_analysis);
+            renderKeyMetrics(summaryData.key_metrics);
         } catch (error) {
             console.error('Failed to load summary data:', error);
             // Optionally, display an error in the tables
-            document.querySelector('#summary-teacher-workload tbody').innerHTML = `<tr><td colspan="2" class="error-cell">${error.message}</td></tr>`;
+            document.querySelector('#summary-teacher-workload tbody').innerHTML = `<tr><td colspan="3" class="error-cell">${error.message}</td></tr>`;
             document.querySelector('#summary-subject-analysis tbody').innerHTML = `<tr><td colspan="4" class="error-cell">${error.message}</td></tr>`;
+            document.querySelector('#summary-section-fill tbody').innerHTML = `<tr><td colspan="4" class="error-cell">${error.message}</td></tr>`;
         }
+    };
+
+    const renderKeyMetrics = (metrics) => {
+        const container = document.querySelector('#summary-key-metrics');
+        if (!container) return;
+        container.innerHTML = `
+            <h4>Key Metrics</h4>
+            <p><strong>Total Teachers:</strong> ${metrics.total_teachers}</p>
+            <p><strong>Total Sections:</strong> ${metrics.total_sections}</p>
+        `;
     };
 
     // --- Teacher Assignment Logic ---

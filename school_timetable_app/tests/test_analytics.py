@@ -38,7 +38,7 @@ class AnalyticsTestCase(unittest.TestCase):
 
     def test_teacher_workload(self):
         from app.analytics import get_teacher_workload
-        workload = get_teacher_workload()
+        workload = get_teacher_workload(40) # Pass a dummy value for the first check
 
         self.assertEqual(len(workload), 2)
 
@@ -51,6 +51,15 @@ class AnalyticsTestCase(unittest.TestCase):
 
         self.assertEqual(mr_a_workload['assigned_periods'], 5)
         self.assertEqual(ms_b_workload['assigned_periods'], 7)
+
+        # Test was not passed total_available_periods, so it should be None or not present
+        # but the new implementation requires it. Let's adapt the test.
+        from app.analytics import get_teacher_workload
+        # Let's assume a 40 period week for this test
+        workload_with_free = get_teacher_workload(40)
+        mr_a_workload_free = next((item for item in workload_with_free if item['teacher_name'] == 'Mr. A'), None)
+        self.assertEqual(mr_a_workload_free['free_periods'], 35)
+
 
     def test_subject_demand_and_supply(self):
         from app.analytics import get_subject_demand_and_supply
@@ -112,3 +121,15 @@ class AnalyticsTestCase(unittest.TestCase):
         # Assigned periods = 5 (Math by Mr.A) + 5 (Math by Ms.B) + 2 (Art by Ms.B) = 12
         self.assertEqual(sec_analysis['assigned_periods'], 12)
         self.assertEqual(sec_analysis['status'], 'Under Scheduled')
+
+    def test_generate_summary_data(self):
+        from app.analytics import generate_summary_data
+        summary = generate_summary_data()
+
+        self.assertIn('teacher_workload', summary)
+        self.assertIn('subject_analysis', summary)
+        self.assertIn('section_fill_analysis', summary)
+        self.assertIn('key_metrics', summary)
+
+        self.assertEqual(summary['key_metrics']['total_teachers'], 2)
+        self.assertEqual(summary['key_metrics']['total_sections'], 1)
