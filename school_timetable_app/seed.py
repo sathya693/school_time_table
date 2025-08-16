@@ -22,7 +22,7 @@ def seed_data():
         # --- Create Default Configuration ---
         print("Creating default configuration...")
         config_items = [
-            Configuration(key='periods_per_day', value='9'),
+            Configuration(key='periods_per_day', value='8'), # Changed to 8 for a 40-period week
             Configuration(key='work_days', value='Monday,Tuesday,Wednesday,Thursday,Friday')
         ]
         db.session.add_all(config_items)
@@ -78,15 +78,20 @@ def seed_data():
         # This is a simplified mapping. A real scenario would be more complex.
         courses_to_create = []
         all_sections = Section.query.all()
-        teacher_cycle = 0
+
+        # Shuffle teachers before each section to distribute workload more evenly
+        import random
+
         for section in all_sections:
+            random.shuffle(teachers) # Shuffle for each section
+            teacher_cycle = 0
             for subject in Subject.query.all():
                 # Simple round-robin assignment for demonstration
                 teacher = teachers[teacher_cycle % len(teachers)]
                 teacher_cycle += 1
 
-                # Assign more realistic periods per week to make the schedule look fuller
-                periods_per_week = 5 if subject.name in ['Mathematics', 'English', 'Physics', 'History'] else 4
+                # Assign 5 periods per subject to make a full 40-period week (8 subjects * 5 periods)
+                periods_per_week = 5
 
                 courses_to_create.append(Course(
                     subject_id=subject.id,

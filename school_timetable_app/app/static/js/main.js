@@ -108,8 +108,19 @@ function initSetupWizard() {
                 const option = document.createElement('option');
                 option.value = item[value];
                 let label = item[nameKey];
-                if (text === 'Section') label = `${item.grade_name} - ${item.name}`;
-                if (text === 'Timeslot') label = `${item.day_of_week} - Period ${item.period_number}`;
+
+                // Special handling for teachers to show their workload
+                if (text === 'Teacher' && item.workload !== undefined) {
+                    const totalPeriods = (allData.config && allData.config.periods_per_day && allData.config.work_days)
+                        ? parseInt(allData.config.periods_per_day) * allData.config.work_days.split(',').length
+                        : 40; // Default to 40 if config not fully available
+                    label += ` (${item.workload}/${totalPeriods} periods)`;
+                } else if (text === 'Section') {
+                    label = `${item.grade_name} - ${item.name}`;
+                } else if (text === 'Timeslot') {
+                    label = `${item.day_of_week} - Period ${item.period_number}`;
+                }
+
                 option.textContent = label;
                 selectElement.appendChild(option);
             });

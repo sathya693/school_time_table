@@ -71,7 +71,17 @@ def get_all_data():
         if not model_instance: return None
         return {c.name: getattr(model_instance, c.name) for c in model_instance.__table__.columns}
 
-    teachers = [serialize(t) for t in Teacher.query.all()]
+    # Enhance teacher serialization to include workload
+    teachers_q = Teacher.query.all()
+    teachers = []
+    for t in teachers_q:
+        workload = sum(c.periods_per_week for c in t.courses)
+        teachers.append({
+            "id": t.id,
+            "name": t.name,
+            "workload": workload
+        })
+
     subjects = [serialize(s) for s in Subject.query.all()]
     grades = [serialize(g) for g in Grade.query.all()]
     sections = [serialize(s) for s in Section.query.all()]
