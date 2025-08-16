@@ -62,13 +62,48 @@ def analyze_teacher_sufficiency(subject_analysis, periods_per_teacher=40):
         })
     return sufficiency_analysis
 
+def get_section_fill_analysis():
+    """
+    Calculates how many assigned periods each section has versus the total
+    available periods in a week.
+    """
+    from .models import Section, Configuration
+
+    config_q = Configuration.query.all()
+    config = {c.key: c.value for c in config_q}
+
+    periods_per_day = int(config.get('periods_per_day', 8))
+    work_days = config.get('work_days', 'Monday,Tuesday,Wednesday,Thursday,Friday').split(',')
+    total_available = periods_per_day * len(work_days)
+
+    sections = Section.query.all()
+    analysis = []
+    for section in sections:
+        assigned_periods = sum(course.periods_per_week for course in section.courses)
+        status = "Fully Scheduled"
+        if assigned_periods < total_available:
+            status = "Under Scheduled"
+        elif assigned_periods > total_available:
+            status = "Over Scheduled"
+
+        analysis.append({
+            "section_name": f"{section.grade.name} - {section.name}",
+            "assigned_periods": assigned_periods,
+            "available_periods": total_available,
+            "status": status
+        })
+    return sorted(analysis, key=lambda x: x['section_name'])
+
+
 def generate_summary_data():
     """Generates all data needed for the summary/analytics page."""
     teacher_workload = get_teacher_workload()
     subject_demand_supply = get_subject_demand_and_supply()
     teacher_sufficiency = analyze_teacher_sufficiency(subject_demand_supply)
+    section_fill = get_section_fill_analysis()
 
     return {
         "teacher_workload": teacher_workload,
-        "subject_analysis": teacher_sufficiency
+        "subject_analysis": teacher_sufficiency,
+        "section_fill_analysis": section_fill
     }

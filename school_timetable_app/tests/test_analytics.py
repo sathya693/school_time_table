@@ -91,3 +91,24 @@ class AnalyticsTestCase(unittest.TestCase):
         shortage_subject_analysis = [{"subject_name": "Gym", "required_periods": 10, "available_teachers": 1}]
         shortage_sufficiency = analyze_teacher_sufficiency(shortage_subject_analysis, periods_per_teacher=8)
         self.assertEqual(shortage_sufficiency[0]['status'], 'Shortage')
+
+    def test_section_fill_analysis(self):
+        from app.analytics import get_section_fill_analysis
+        from app.models import Configuration
+
+        # Set config for the test
+        c1 = Configuration(key='periods_per_day', value='10')
+        c2 = Configuration(key='work_days', value='Monday,Tuesday')
+        db.session.add_all([c1, c2])
+        db.session.commit()
+
+        # Total available = 10 * 2 = 20
+        analysis = get_section_fill_analysis()
+        self.assertEqual(len(analysis), 1)
+
+        sec_analysis = analysis[0]
+        self.assertEqual(sec_analysis['section_name'], 'Grade 1 - A')
+        self.assertEqual(sec_analysis['available_periods'], 20)
+        # Assigned periods = 5 (Math by Mr.A) + 5 (Math by Ms.B) + 2 (Art by Ms.B) = 12
+        self.assertEqual(sec_analysis['assigned_periods'], 12)
+        self.assertEqual(sec_analysis['status'], 'Under Scheduled')

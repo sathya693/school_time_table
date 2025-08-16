@@ -275,6 +275,24 @@ function initSetupWizard() {
         });
     };
 
+    const renderSectionFillTable = (analysis) => {
+        const tbody = document.querySelector('#summary-section-fill tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        analysis.forEach(item => {
+            let statusClass = '';
+            if (item.status === 'Under Scheduled') statusClass = 'status-shortage';
+            else if (item.status === 'Over Scheduled') statusClass = 'status-overload'; // A new class might be needed
+            const row = `<tr>
+                <td>${item.section_name}</td>
+                <td>${item.assigned_periods}</td>
+                <td>${item.available_periods}</td>
+                <td class="${statusClass}">${item.status}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    };
+
     const loadSummaryData = async () => {
         console.log("Loading summary data...");
         try {
@@ -284,6 +302,7 @@ function initSetupWizard() {
 
             renderWorkloadTable(summaryData.teacher_workload);
             renderAnalysisTable(summaryData.subject_analysis);
+            renderSectionFillTable(summaryData.section_fill_analysis);
         } catch (error) {
             console.error('Failed to load summary data:', error);
             // Optionally, display an error in the tables

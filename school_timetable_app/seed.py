@@ -79,7 +79,8 @@ def seed_data():
                 teacher = teachers[teacher_cycle % len(teachers)]
                 teacher_cycle += 1
 
-                periods_per_week = 4 if subject.name in ['Mathematics', 'English'] else 3
+                # Assign more realistic periods per week to make the schedule look fuller
+                periods_per_week = 5 if subject.name in ['Mathematics', 'English', 'Physics', 'History'] else 4
 
                 courses_to_create.append(Course(
                     subject_id=subject.id,
